@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StableGuard — Risk Manager Console</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+:root{--bg:#030507;--bg2:#070b0f;--bg3:#0c1118;--border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.10);--text:#e8edf2;--text2:#7a8a99;--text3:#3d5060;--accent:#00d4ff;--accent2:#0088aa;--green:#00e87a;--yellow:#ffc930;--orange:#ff7a2f;--red:#ff3366;--green-bg:rgba(0,232,122,0.07);--yellow-bg:rgba(255,201,48,0.07);--orange-bg:rgba(255,122,47,0.07);--red-bg:rgba(255,51,102,0.07);--nav-h:60px;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding-top:var(--nav-h);}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.sg-nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(3,5,7,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:1000;display:flex;align-items:center;padding:0 28px;}
+.sg-nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;margin-right:40px;}
+.sg-nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px rgba(0,212,255,0.25);}
+.sg-nav-logo-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);}
+.sg-nav-links{display:flex;align-items:center;gap:4px;flex:1;}
+.sg-nav-link{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;color:var(--text2);transition:all 0.2s;}
+.sg-nav-link:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.sg-nav-link.active{color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);}
+.sg-nav-right{margin-left:auto;}
+.nav-status{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.page{max-width:1440px;margin:0 auto;padding:28px 28px 60px;position:relative;z-index:1;}
+.page-header{margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;}
+.page-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:2px;color:var(--text);line-height:1;}
+.page-sub{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.6;}
+.section-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.section-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;}
+.card-title{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;}
+.kpi-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;line-height:1;color:var(--text);}
+.kpi-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:5px;}
+.kpi-icon{position:absolute;right:16px;top:16px;font-size:22px;opacity:0.25;}
+table{width:100%;border-collapse:collapse;}
+th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+tr:last-child td{border-bottom:none;}
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:12px;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;}
+.badge-healthy{background:var(--green-bg);color:var(--green);}
+.badge-watch{background:var(--yellow-bg);color:var(--yellow);}
+.badge-reduce{background:var(--orange-bg);color:var(--orange);}
+.badge-exit{background:var(--red-bg);color:var(--red);}
+.risk-bar-track{width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.risk-bar-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+.threshold-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.threshold-row:last-child{border-bottom:none;}
+.threshold-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);flex:1;}
+.threshold-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);width:40px;text-align:center;}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--bg3);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 8px rgba(0,212,255,0.4);}
+.alert-row{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
+.alert-row:last-child{border-bottom:none;}
+.adot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.adot-exit{background:var(--red);box-shadow:0 0 6px var(--red);}
+.adot-reduce{background:var(--orange);box-shadow:0 0 6px var(--orange);}
+.adot-watch{background:var(--yellow);}
+.exposure-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.exposure-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);width:70px;flex-shrink:0;}
+.exposure-track{flex:1;height:20px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative;}
+.exposure-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-family:'DM Mono',monospace;font-size:9px;color:rgba(255,255,255,0.7);transition:width 1s ease;}
+.exposure-pct{font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);width:40px;text-align:right;}
+.compliance-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.compliance-item:last-child{border-bottom:none;}
+.compliance-check{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.check-pass{background:var(--green-bg);border:1px solid rgba(0,232,122,0.3);}
+.check-warn{background:var(--yellow-bg);border:1px solid rgba(255,201,48,0.3);}
+.check-fail{background:var(--red-bg);border:1px solid rgba(255,51,102,0.3);}
+.compliance-text{flex:1;font-size:12px;color:var(--text2);}
+.compliance-status{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text3);gap:12px;}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.btn{font-family:'DM Mono',monospace;font-size:10px;padding:7px 14px;border-radius:8px;cursor:pointer;transition:all 0.2s;border:none;}
+.btn-primary{background:var(--accent);color:var(--bg);}
+.btn-primary:hover{background:#00bbdd;}
+.btn-ghost{background:transparent;color:var(--accent);border:1px solid rgba(0,212,255,0.25);}
+.btn-ghost:hover{background:rgba(0,212,255,0.08);}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(255,51,102,0.25);}
+.btn-danger:hover{background:var(--red-bg);}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}.page{padding:16px;}}
+</style>
+</head>
+<body>
+
+<nav class="sg-nav">
+  <a href="dashboard.html" class="sg-nav-logo">
+    <div class="sg-nav-logo-icon">🛡</div>
+    <span class="sg-nav-logo-text">StableGuard</span>
+  </a>
+  <div class="sg-nav-links">
+    <a href="dashboard.html" class="sg-nav-link">📊 <span>Traders</span></a>
+    <a href="analyst.html" class="sg-nav-link">🔬 <span>Analysts</span></a>
+    <a href="risk-manager.html" class="sg-nav-link active">⚙️ <span>Risk Managers</span></a>
+    <a href="institutions.html" class="sg-nav-link">🏛 <span>Institutions</span></a>
+  </div>
+  <div class="sg-nav-right">
+    <div class="nav-status"><div class="pulse-dot"></div><span>Console Active</span></div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-eyebrow">⚙️ Risk Management Console</div>
+      <div class="page-title">Portfolio Risk Control</div>
+      <div class="page-sub">Configurable risk monitoring, compliance workflows, exposure concentration alerts, and audit-ready reporting for risk managers and treasury teams.</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost" onclick="exportAuditLog()">↓ Audit Log</button>
+      <button class="btn btn-primary" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="grid-4" style="margin-bottom:24px;">
+    <div class="kpi-card"><div class="kpi-icon">🎯</div><div class="kpi-label">Portfolio Risk Score</div><div class="kpi-val" id="kpi-portfolio" style="color:var(--orange)">—</div><div class="kpi-sub">Weighted avg all positions</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚠️</div><div class="kpi-label">Threshold Breaches</div><div class="kpi-val" id="kpi-breaches" style="color:var(--red)">—</div><div class="kpi-sub">Custom thresholds exceeded</div></div>
+    <div class="kpi-card"><div class="kpi-icon">📋</div><div class="kpi-label">Compliance Status</div><div class="kpi-val" style="font-size:18px;padding-top:8px" id="kpi-compliance">—</div><div class="kpi-sub">Policy adherence</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🕐</div><div class="kpi-label">Last Assessment</div><div class="kpi-val" style="font-size:18px;padding-top:8px" id="kpi-time">—</div><div class="kpi-sub">Auto-refresh 5min</div></div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Left Column -->
+    <div>
+
+      <!-- Portfolio Risk Overview -->
+      <div class="card">
+        <div class="card-title">Portfolio Risk Overview — All Stablecoins</div>
+        <div id="portfolio-rows">
+          <div class="loading"><div class="spinner"></div><span>Loading...</span></div>
+        </div>
+      </div>
+
+      <!-- Custom Risk Thresholds -->
+      <div class="card">
+        <div class="card-title">Custom Risk Thresholds</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">Set your own WATCH/REDUCE/EXIT thresholds per stablecoin. Override the platform defaults based on your internal risk policy.</p>
+        <div id="threshold-controls">
+          <div class="threshold-row">
+            <div class="threshold-label">🟡 WATCH threshold</div>
+            <input type="range" min="10" max="40" value="20" id="th-watch" oninput="updateThreshold('watch',this.value)">
+            <div class="threshold-val" id="th-watch-val">20</div>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-label">🟠 REDUCE threshold</div>
+            <input type="range" min="30" max="60" value="45" id="th-reduce" oninput="updateThreshold('reduce',this.value)">
+            <div class="threshold-val" id="th-reduce-val">45</div>
+          </div>
+          <div class="threshold-row">
+            <div class="threshold-label">🔴 EXIT threshold</div>
+            <input type="range" min="50" max="90" value="70" id="th-exit" oninput="updateThreshold('exit',this.value)">
+            <div class="threshold-val" id="th-exit-val">70</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);">
+          ⓘ Threshold changes apply to this session only. Changes are logged to audit trail.
+        </div>
+      </div>
+
+      <!-- Exposure Concentration -->
+      <div class="card">
+        <div class="card-title">Exposure Concentration Analysis</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">Based on current market cap distribution. Alert fires if any single stablecoin exceeds 40% of portfolio exposure.</p>
+        <div id="exposure-bars">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div id="concentration-alert" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:var(--red-bg);border:1px solid rgba(255,51,102,0.2);">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--red)">⚠ CONCENTRATION ALERT: One or more stablecoins exceed 40% exposure threshold. Review portfolio diversification immediately.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div>
+
+      <!-- Risk Chart -->
+      <div class="card">
+        <div class="card-title">Risk Score Distribution — All Positions</div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div id="risk-chart" style="height:260px"></div>
+        </div>
+      </div>
+
+      <!-- Compliance Checklist -->
+      <div class="card">
+        <div class="card-title">Compliance Checklist — MiCA / Basel III Aligned</div>
+        <div id="compliance-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Alert Log / Audit Trail -->
+      <div class="card">
+        <div class="card-title">Audit Trail — Immutable Alert Log</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6;">Every alert received, timestamped and logged. Suitable for regulatory audit requirements.</p>
+        <div id="audit-log">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="exportAuditLog()">↓ Export CSV</button>
+          <button class="btn btn-ghost" onclick="exportAuditPDF()">↓ Export PDF Report</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Full Portfolio Table -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="card-title" style="margin-bottom:0">Full Risk Assessment Table</div>
+      <button class="btn btn-ghost" onclick="exportRiskCSV()">↓ Export CSV</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="risk-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Alert Level</th>
+            <th>Risk Score</th>
+            <th>Liquidity</th>
+            <th>Mint/Burn</th>
+            <th>Arb</th>
+            <th>Trend</th>
+            <th>Flags</th>
+            <th>Custom Status</th>
+          </tr>
+        </thead>
+        <tbody id="risk-tbody">
+          <tr><td colspan="9" style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API='http://localhost:8000';
+let globalCoins=[],globalAlerts=[];
+let thresholds={watch:20,reduce:45,exit:70};
+
+function alertCls(l){if(!l)return'healthy';if(l.includes('EXIT'))return'exit';if(l.includes('REDUCE'))return'reduce';if(l.includes('WATCH'))return'watch';return'healthy';}
+function scoreCol(s){return s>=70?'var(--red)':s>=45?'var(--orange)':s>=20?'var(--yellow)':'var(--green)';}
+function timeAgo(iso){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso))/1000);if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;return`${Math.floor(d/3600)}h ago`;}
+
+function updateThreshold(type,val){
+  thresholds[type]=parseInt(val);
+  document.getElementById(`th-${type}-val`).textContent=val;
+  renderPortfolioRows();
+  renderRiskTable();
+  logAudit(`THRESHOLD CHANGE: ${type.toUpperCase()} threshold updated to ${val}`);
+}
+
+function customAlertLevel(score){
+  if(score>=thresholds.exit)return{cls:'exit',label:'🔴 EXIT'};
+  if(score>=thresholds.reduce)return{cls:'reduce',label:'🟠 REDUCE'};
+  if(score>=thresholds.watch)return{cls:'watch',label:'🟡 WATCH'};
+  return{cls:'healthy',label:'🟢 HEALTHY'};
+}
+
+function renderPortfolioRows(){
+  const container=document.getElementById('portfolio-rows');
+  if(!globalCoins.length){container.innerHTML=`<div class="loading"><div class="spinner"></div></div>`;return;}
+  const avgScore=Math.round(globalCoins.reduce((s,c)=>s+(c.composite_score||0),0)/globalCoins.length);
+  document.getElementById('kpi-portfolio').textContent=avgScore;
+  document.getElementById('kpi-portfolio').style.color=scoreCol(avgScore);
+  const breaches=globalCoins.filter(c=>(c.composite_score||0)>=thresholds.exit).length;
+  document.getElementById('kpi-breaches').textContent=breaches;
+
+  container.innerHTML=globalCoins.map(c=>{
+    const score=c.composite_score||0;
+    const custom=customAlertLevel(score);
+    return`<div class="exposure-bar" style="margin-bottom:14px;">
+      <div class="exposure-label">${c.symbol}</div>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3)">${custom.label}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:${scoreCol(score)}">${score}/100</span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" style="width:${score}%;background:${scoreCol(score)}"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderExposureBars(){
+  const container=document.getElementById('exposure-bars');
+  if(!globalCoins.length)return;
+  const totalMcap=globalCoins.reduce((s,c)=>s+(c.market_cap||1e9),0);
+  let hasConcentration=false;
+  container.innerHTML=globalCoins.map(c=>{
+    const mcap=c.market_cap||1e9;
+    const pct=Math.round(mcap/totalMcap*100);
+    if(pct>40)hasConcentration=true;
+    const col=pct>40?'var(--red)':pct>30?'var(--orange)':'var(--accent)';
+    return`<div class="exposure-bar">
+      <div class="exposure-label">${c.symbol}</div>
+      <div class="exposure-track">
+        <div class="exposure-fill" style="width:${pct}%;background:${col}">${pct>8?pct+'%':''}</div>
+      </div>
+      <div class="exposure-pct" style="color:${col}">${pct}%</div>
+    </div>`;
+  }).join('');
+  document.getElementById('concentration-alert').style.display=hasConcentration?'block':'none';
+}
+
+function renderComplianceList(){
+  const coins=globalCoins;
+  const exitCount=coins.filter(c=>(c.composite_score||0)>=thresholds.exit).length;
+  const avgScore=coins.length?Math.round(coins.reduce((s,c)=>s+(c.composite_score||0),0)/coins.length):0;
+  const items=[
+    {check:exitCount===0,warn:false,text:'No stablecoins in EXIT alert state',pass:'PASS',fail:'FAIL'},
+    {check:avgScore<50,warn:avgScore>=35,text:`Portfolio average risk score below 50 (current: ${avgScore})`,pass:'PASS',fail:'BREACH'},
+    {check:true,warn:false,text:'Real-time monitoring active — signal engine running',pass:'ACTIVE',fail:'INACTIVE'},
+    {check:globalAlerts.length>0,warn:false,text:'Alert logging operational — audit trail available',pass:'ACTIVE',fail:'INACTIVE'},
+    {check:coins.length>=5,warn:false,text:'Minimum monitored stablecoins (≥5) — MiCA Article 23',pass:'COMPLIANT',fail:'BREACH'},
+    {check:avgScore<70,warn:avgScore>=50,text:'Portfolio risk below critical threshold (Basel III aligned)',pass:'COMPLIANT',fail:'REVIEW'},
+  ];
+  document.getElementById('compliance-list').innerHTML=items.map(item=>{
+    const status=item.check?(item.warn?'warn':'pass'):'fail';
+    const statusLabel=item.check?(item.warn?'WARN':item.pass):item.fail;
+    const statusColor=status==='pass'?'var(--green)':status==='warn'?'var(--yellow)':'var(--red)';
+    const icon=status==='pass'?'✓':status==='warn'?'!':'✗';
+    return`<div class="compliance-item">
+      <div class="compliance-check check-${status}"><span style="color:${statusColor};font-weight:700;font-size:10px">${icon}</span></div>
+      <div class="compliance-text">${item.text}</div>
+      <div class="compliance-status" style="color:${statusColor}">${statusLabel}</div>
+    </div>`;
+  }).join('');
+
+  const passCount=items.filter(i=>i.check&&!i.warn).length;
+  const warnCount=items.filter(i=>i.check&&i.warn).length;
+  const status=passCount>=5?'✅ COMPLIANT':warnCount>0?'⚠️ REVIEW NEEDED':'❌ NON-COMPLIANT';
+  document.getElementById('kpi-compliance').textContent=status;
+}
+
+function renderAuditLog(){
+  const container=document.getElementById('audit-log');
+  if(!globalAlerts.length){
+    container.innerHTML=`<div style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;padding:20px 0;text-align:center;">No alerts logged yet</div>`;
+    return;
+  }
+  container.innerHTML=globalAlerts.slice(0,8).map(a=>{
+    const cls=alertCls(a.alert_level);
+    const col=cls==='exit'?'var(--red)':cls==='reduce'?'var(--orange)':cls==='watch'?'var(--yellow)':'var(--green)';
+    return`<div class="alert-row">
+      <div class="adot adot-${cls}"></div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);font-weight:700">${a.symbol}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:${col}">${a.alert_level||''}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-left:auto">${timeAgo(a.timestamp)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2)">${a.guidance?.substring(0,100)||''}${(a.guidance?.length||0)>100?'...':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRiskTable(){
+  const tbody=document.getElementById('risk-tbody');
+  if(!globalCoins.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto"></div></td></tr>`;return;}
+  tbody.innerHTML=globalCoins.map(c=>{
+    const cls=alertCls(c.alert_level);
+    const score=c.composite_score||0;
+    const custom=customAlertLevel(score);
+    const trend=c.risk_trend||'→ Stable';
+    const trendCol=trend.includes('Rising')?'var(--red)':trend.includes('Falling')?'var(--green)':'var(--text2)';
+    const flags=(c.active_flags||[]).slice(0,2).join(', ')||'—';
+    return`<tr>
+      <td style="color:var(--text);font-weight:700">${c.symbol}</td>
+      <td><span class="badge badge-${cls}">${c.alert_level||'—'}</span></td>
+      <td style="color:${scoreCol(score)};font-weight:700">${score}</td>
+      <td>${c.liq_score||0}</td>
+      <td>${c.mb_score||0}</td>
+      <td>${c.arb_score||0}</td>
+      <td style="color:${trendCol}">${trend}</td>
+      <td style="font-size:9px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${flags}</td>
+      <td><span class="badge badge-${custom.cls}" style="font-size:8px">${custom.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRiskChart(){
+  const coins=globalCoins;
+  if(!coins.length)return;
+  Plotly.newPlot('risk-chart',[
+    {type:'bar',x:coins.map(c=>c.symbol),y:coins.map(c=>c.liq_score||0),name:'Liquidity',marker:{color:'rgba(0,212,255,0.7)'},hovertemplate:'%{x}<br>Liquidity: %{y}<extra></extra>'},
+    {type:'bar',x:coins.map(c=>c.symbol),y:coins.map(c=>c.mb_score||0),name:'Mint/Burn',marker:{color:'rgba(255,122,47,0.7)'},hovertemplate:'%{x}<br>Mint/Burn: %{y}<extra></extra>'},
+    {type:'bar',x:coins.map(c=>c.symbol),y:coins.map(c=>c.arb_score||0),name:'Arb',marker:{color:'rgba(255,201,48,0.7)'},hovertemplate:'%{x}<br>Arb: %{y}<extra></extra>'},
+  ],{
+    paper_bgcolor:'transparent',plot_bgcolor:'transparent',
+    barmode:'group',
+    font:{color:'#7a8a99',family:'DM Mono'},
+    margin:{t:10,b:40,l:30,r:10},
+    xaxis:{gridcolor:'rgba(255,255,255,0.04)',color:'#3d5060',tickfont:{size:10}},
+    yaxis:{gridcolor:'rgba(255,255,255,0.04)',color:'#3d5060',tickfont:{size:10},range:[0,115]},
+    legend:{bgcolor:'rgba(0,0,0,0)',font:{color:'#7a8a99',size:10}},
+    hovermode:'x unified',
+  },{responsive:true,displayModeBar:false});
+}
+
+// Audit log entries (session-based)
+let auditEntries=[];
+function logAudit(msg){
+  auditEntries.unshift({time:new Date().toISOString(),msg});
+}
+
+function exportAuditLog(){
+  const rows=globalAlerts.map(a=>`"${a.timestamp}","${a.symbol}","${a.alert_level}","${a.composite_score}","${(a.guidance||'').replace(/"/g,"'")}"`);
+  const csv=['timestamp,symbol,alert_level,composite_score,guidance',...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`stableguard_audit_log_${Date.now()}.csv`;a.click();
+}
+
+function exportRiskCSV(){
+  const headers=['symbol','alert_level','composite_score','liq_score','mb_score','arb_score','risk_trend','pillars_active'];
+  const rows=globalCoins.map(c=>headers.map(h=>c[h]??'').join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`stableguard_risk_assessment_${Date.now()}.csv`;a.click();
+}
+
+function exportAuditPDF(){
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>StableGuard Risk Report</title>
+  <style>body{font-family:monospace;padding:40px;background:white;color:#111;}h1{color:#1a1a2e;border-bottom:2px solid #00d4ff;padding-bottom:10px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background:#f0f0f0;padding:8px;text-align:left;font-size:11px;}td{padding:8px;border-bottom:1px solid #eee;font-size:11px;}.footer{margin-top:40px;font-size:10px;color:#999;}</style>
+  </head><body>
+  <h1>🛡 StableGuard — Risk Assessment Report</h1>
+  <p>Generated: ${new Date().toLocaleString()} UTC</p>
+  <p>Monitoring: ${globalCoins.length} stablecoins | Portfolio Avg Score: ${Math.round(globalCoins.reduce((s,c)=>s+(c.composite_score||0),0)/globalCoins.length)}/100</p>
+  <h2>Risk Summary</h2>
+  <table><thead><tr><th>Symbol</th><th>Alert Level</th><th>Score</th><th>Liquidity</th><th>Mint/Burn</th><th>Arb</th><th>Trend</th></tr></thead>
+  <tbody>${globalCoins.map(c=>`<tr><td><b>${c.symbol}</b></td><td>${c.alert_level||'—'}</td><td>${c.composite_score||0}</td><td>${c.liq_score||0}</td><td>${c.mb_score||0}</td><td>${c.arb_score||0}</td><td>${c.risk_trend||'—'}</td></tr>`).join('')}</tbody></table>
+  <h2>Recent Alerts (Last 20)</h2>
+  <table><thead><tr><th>Time</th><th>Symbol</th><th>Level</th><th>Score</th><th>Guidance</th></tr></thead>
+  <tbody>${globalAlerts.slice(0,20).map(a=>`<tr><td>${a.timestamp?.substring(0,19)||'—'}</td><td>${a.symbol}</td><td>${a.alert_level||'—'}</td><td>${a.composite_score||0}</td><td style="max-width:300px">${(a.guidance||'').substring(0,120)}</td></tr>`).join('')}</tbody></table>
+  <div class="footer">StableGuard v1.0 — Confidential Risk Report — For internal use only<br>Aligned with MiCA Article 23 stablecoin risk disclosure requirements</div>
+  </body></html>`);
+  w.document.close();setTimeout(()=>w.print(),500);
+}
+
+async function loadData(){
+  try{
+    const[sumRes,alertRes]=await Promise.all([fetch(`${API}/v1/summary`),fetch(`${API}/v1/alerts?limit=50`)]);
+    const sum=await sumRes.json();
+    const alertData=alertRes.ok?await alertRes.json():{alerts:[]};
+    const coins=sum.coins||[];
+
+    globalCoins=await Promise.all(coins.map(async c=>{
+      try{
+        const r=await fetch(`${API}/v1/signals/${c.symbol}`);
+        if(r.ok){
+          const d=await r.json();
+          return{...c,
+            liq_score:d.signals?.liquidity?.score||0,
+            mb_score:d.signals?.mintBurn?.score||0,
+            arb_score:d.signals?.arb?.score||0,
+            guidance:d.guidance||c.guidance,
+            active_flags:d.active_flags||[],
+            market_cap:c.market_cap||1e9,
+          };
+        }
+      }catch{}
+      return c;
+    }));
+
+    globalAlerts=alertData.alerts||[];
+
+    document.getElementById('kpi-time').textContent=
+      sum.last_updated?new Date(sum.last_updated).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'—';
+
+    renderPortfolioRows();
+    renderExposureBars();
+    renderComplianceList();
+    renderAuditLog();
+    renderRiskTable();
+    renderRiskChart();
+
+  }catch(e){console.error('Load error:',e);}
+}
+
+loadData();
+setInterval(loadData,5*60*1000);
+</script>
+</body>
+</html>

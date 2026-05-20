@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StableGuard — Analyst Workbench</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+:root{--bg:#030507;--bg2:#070b0f;--bg3:#0c1118;--bg4:#111820;--border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.10);--text:#e8edf2;--text2:#7a8a99;--text3:#3d5060;--accent:#00d4ff;--accent2:#0088aa;--green:#00e87a;--yellow:#ffc930;--orange:#ff7a2f;--red:#ff3366;--green-bg:rgba(0,232,122,0.07);--yellow-bg:rgba(255,201,48,0.07);--orange-bg:rgba(255,122,47,0.07);--red-bg:rgba(255,51,102,0.07);--nav-h:60px;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding-top:var(--nav-h);}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.sg-nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(3,5,7,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:1000;display:flex;align-items:center;padding:0 28px;}
+.sg-nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;margin-right:40px;}
+.sg-nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px rgba(0,212,255,0.25);}
+.sg-nav-logo-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);}
+.sg-nav-links{display:flex;align-items:center;gap:4px;flex:1;}
+.sg-nav-link{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;color:var(--text2);transition:all 0.2s;}
+.sg-nav-link:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.sg-nav-link.active{color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);}
+.sg-nav-right{display:flex;align-items:center;gap:12px;margin-left:auto;}
+.nav-status{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.page{max-width:1440px;margin:0 auto;padding:28px 28px 60px;position:relative;z-index:1;}
+.page-header{margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+.page-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:46px;letter-spacing:2px;color:var(--text);line-height:1;}
+.page-sub{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.6;}
+.section-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.section-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;transition:border-color 0.2s;margin-bottom:20px;}
+.card:hover{border-color:var(--border2);}
+.card-title{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.stat-mini{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.stat-mini-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+.stat-mini-val{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:1px;color:var(--text);line-height:1;}
+.stat-mini-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px;}
+.controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.ctrl-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+.ctrl-select{background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;outline:none;transition:border-color 0.2s;}
+.ctrl-select:hover{border-color:var(--border2);}
+.ctrl-select:focus{border-color:var(--accent);}
+.ctrl-btn{font-family:'DM Mono',monospace;font-size:10px;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.2s;}
+.ctrl-btn:hover{border-color:var(--border2);color:var(--text);}
+.ctrl-btn.active{background:rgba(0,212,255,0.08);color:var(--accent);border-color:rgba(0,212,255,0.2);}
+.export-btn{font-family:'DM Mono',monospace;font-size:10px;padding:6px 14px;border-radius:8px;border:1px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.06);color:var(--accent);cursor:pointer;transition:all 0.2s;margin-left:auto;}
+.export-btn:hover{background:rgba(0,212,255,0.12);}
+.chart-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;}
+table{width:100%;border-collapse:collapse;}
+th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+tr:last-child td{border-bottom:none;}
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:12px;font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;}
+.badge-healthy{background:var(--green-bg);color:var(--green);}
+.badge-watch{background:var(--yellow-bg);color:var(--yellow);}
+.badge-reduce{background:var(--orange-bg);color:var(--orange);}
+.badge-exit{background:var(--red-bg);color:var(--red);}
+.tab-bar{display:flex;gap:2px;background:var(--bg3);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;}
+.tab{font-family:'DM Mono',monospace;font-size:11px;padding:7px 16px;border-radius:7px;cursor:pointer;color:var(--text2);transition:all 0.2s;border:none;background:transparent;}
+.tab.active{background:var(--bg2);color:var(--accent);border:1px solid rgba(0,212,255,0.15);}
+.tab:hover:not(.active){color:var(--text);}
+.tab-content{display:none;}
+.tab-content.active{display:block;animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.heatmap-grid{display:grid;grid-template-columns:80px repeat(7,1fr);gap:3px;margin-top:8px;}
+.heatmap-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);display:flex;align-items:center;padding:0 4px;}
+.heatmap-cell{height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;transition:all 0.2s;position:relative;}
+.heatmap-cell:hover{transform:scale(1.05);z-index:1;}
+.heatmap-header{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-align:center;padding:4px 0;}
+.loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;color:var(--text3);gap:12px;}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.insight-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-left:3px solid var(--accent);}
+.insight-title{font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+.insight-text{font-size:12px;color:var(--text2);line-height:1.6;}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}.page{padding:16px;}}
+</style>
+</head>
+<body>
+
+<nav class="sg-nav">
+  <a href="dashboard.html" class="sg-nav-logo">
+    <div class="sg-nav-logo-icon">🛡</div>
+    <span class="sg-nav-logo-text">StableGuard</span>
+  </a>
+  <div class="sg-nav-links">
+    <a href="dashboard.html" class="sg-nav-link">📊 <span>Traders</span></a>
+    <a href="analyst.html" class="sg-nav-link active">🔬 <span>Analysts</span></a>
+    <a href="risk-manager.html" class="sg-nav-link">⚙️ <span>Risk Managers</span></a>
+    <a href="institutions.html" class="sg-nav-link">🏛 <span>Institutions</span></a>
+  </div>
+  <div class="sg-nav-right">
+    <div class="nav-status"><div class="pulse-dot"></div><span>Research Mode</span></div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-eyebrow">🔬 Analyst Workbench</div>
+    <div class="page-title">Signal Intelligence Research</div>
+    <div class="page-sub">Research-grade stablecoin health data. Deep historical signal analysis, cross-coin comparison, anomaly detection, and full data export for quantitative modelling.</div>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="grid-4" style="margin-bottom:24px;" id="summary-stats">
+    <div class="stat-mini"><div class="stat-mini-label">Coins Monitored</div><div class="stat-mini-val" id="as-coins">7</div><div class="stat-mini-sub">Ethereum mainnet</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Max Risk Score</div><div class="stat-mini-val" id="as-max" style="color:var(--orange)">—</div><div class="stat-mini-sub" id="as-max-coin">Loading...</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">Signals Active</div><div class="stat-mini-val" id="as-signals" style="color:var(--yellow)">—</div><div class="stat-mini-sub">Across all pillars</div></div>
+    <div class="stat-mini"><div class="stat-mini-label">System Status</div><div class="stat-mini-val" style="font-size:16px;padding-top:8px" id="as-status">—</div><div class="stat-mini-sub" id="as-updated">—</div></div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('comparison')">📈 Signal Comparison</button>
+    <button class="tab" onclick="switchTab('zscore')">📊 Z-Score Analysis</button>
+    <button class="tab" onclick="switchTab('supply')">💰 Supply Tracker</button>
+    <button class="tab" onclick="switchTab('heatmap')">🔥 Risk Heatmap</button>
+    <button class="tab" onclick="switchTab('alerts')">🚨 Alert History</button>
+    <button class="tab" onclick="switchTab('export')">📥 Data Export</button>
+  </div>
+
+  <!-- Tab 1: Signal Comparison -->
+  <div class="tab-content active" id="tab-comparison">
+    <div class="card">
+      <div class="controls">
+        <span class="ctrl-label">Signal:</span>
+        <select class="ctrl-select" id="cmp-signal" onchange="renderComparison()">
+          <option value="composite">Composite Score</option>
+          <option value="liq">Liquidity Score</option>
+          <option value="mb">Mint/Burn Score</option>
+          <option value="arb">Arb Score</option>
+        </select>
+        <span class="ctrl-label">Coins:</span>
+        <div id="coin-checkboxes" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button class="export-btn" onclick="exportChart('comparison-chart')">↓ Export PNG</button>
+      </div>
+      <div class="chart-wrap">
+        <div id="comparison-chart" style="height:380px"></div>
+      </div>
+      <div class="insight-box" style="margin-top:16px;">
+        <div class="insight-title">📌 Analyst Insight</div>
+        <div class="insight-text" id="comparison-insight">Loading signal data for analysis...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Z-Score Analysis -->
+  <div class="tab-content" id="tab-zscore">
+    <div class="card">
+      <div class="controls">
+        <span class="ctrl-label">Pillar:</span>
+        <select class="ctrl-select" id="zs-pillar" onchange="renderZScore()">
+          <option value="burn">Burn Z-Score (Pillar 2)</option>
+          <option value="arb">Arb Z-Score (Pillar 3)</option>
+          <option value="liq">Liquidity Z-Score (Pillar 1)</option>
+        </select>
+        <button class="export-btn" onclick="exportChart('zscore-chart')">↓ Export PNG</button>
+      </div>
+      <div class="chart-wrap">
+        <div id="zscore-chart" style="height:380px"></div>
+      </div>
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="insight-box">
+          <div class="insight-title">⚠ Threshold Reference</div>
+          <div class="insight-text">
+            <strong style="color:var(--yellow)">Z > 1.5</strong> → WATCH level (1 pillar triggered)<br>
+            <strong style="color:var(--orange)">Z > 2.0</strong> → REDUCE level (burn anomaly confirmed)<br>
+            <strong style="color:var(--red)">Z > 3.0</strong> → EXIT level (critical burn spike)<br>
+            <strong style="color:var(--red)">Arb Z &lt; -2.0</strong> → EXIT (bots stopped defending)
+          </div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-title">📚 Historical Context</div>
+          <div class="insight-text">UST showed burn z-score > 4.2 approximately 18 hours before collapse. IRON Finance showed arb z-score drop below -3.1 before the bank run began. These thresholds are calibrated from historical depeg events.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Supply Tracker -->
+  <div class="tab-content" id="tab-supply">
+    <div class="card">
+      <div class="controls">
+        <span class="ctrl-label">View:</span>
+        <button class="ctrl-btn active" onclick="setSupplyView('supply',this)">Total Supply</button>
+        <button class="ctrl-btn" onclick="setSupplyView('net',this)">Net Change</button>
+        <button class="ctrl-btn" onclick="setSupplyView('mints',this)">Mints</button>
+        <button class="ctrl-btn" onclick="setSupplyView('burns',this)">Burns</button>
+        <button class="export-btn" onclick="exportChart('supply-chart')">↓ Export PNG</button>
+      </div>
+      <div class="chart-wrap">
+        <div id="supply-chart" style="height:380px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Supply Summary Table</div>
+      <div style="overflow-x:auto;">
+        <table id="supply-table">
+          <thead><tr><th>Symbol</th><th>Total Supply (M)</th><th>Net Change (M)</th><th>Mints (M)</th><th>Burns (M)</th><th>Alert Level</th></tr></thead>
+          <tbody id="supply-tbody"><tr><td colspan="6" style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Risk Heatmap -->
+  <div class="tab-content" id="tab-heatmap">
+    <div class="card">
+      <div class="card-title">Signal Risk Heatmap — All Coins × All Pillars</div>
+      <div class="chart-wrap" style="overflow-x:auto;">
+        <div id="heatmap-chart" style="height:420px"></div>
+      </div>
+      <div class="insight-box" style="margin-top:16px;">
+        <div class="insight-title">📌 How to Read This</div>
+        <div class="insight-text">Each cell shows the signal score (0-100) for a coin × pillar combination. Darker red = higher risk. Use this to identify which pillar is driving risk across the stablecoin market. A column that's all red indicates a market-wide signal event.</div>
+      </div>
+    </div>
+
+    <!-- Scatter: composite vs peg dev -->
+    <div class="card">
+      <div class="card-title">Composite Score vs Peg Deviation (Scatter)</div>
+      <div class="chart-wrap">
+        <div id="scatter-chart" style="height:320px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 5: Alert History -->
+  <div class="tab-content" id="tab-alerts">
+    <div class="card">
+      <div class="controls">
+        <span class="ctrl-label">Filter:</span>
+        <select class="ctrl-select" id="alert-filter-sym" onchange="filterAlertTable()">
+          <option value="all">All Coins</option>
+          <option value="USDT">USDT</option>
+          <option value="USDC">USDC</option>
+          <option value="DAI">DAI</option>
+          <option value="FRAX">FRAX</option>
+          <option value="PYUSD">PYUSD</option>
+          <option value="crvUSD">crvUSD</option>
+          <option value="LUSD">LUSD</option>
+        </select>
+        <select class="ctrl-select" id="alert-filter-level" onchange="filterAlertTable()">
+          <option value="all">All Levels</option>
+          <option value="EXIT">🔴 Exit</option>
+          <option value="REDUCE">🟠 Reduce</option>
+          <option value="WATCH">🟡 Watch</option>
+        </select>
+        <button class="export-btn" onclick="exportAlertCSV()">↓ Export CSV</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Time</th><th>Symbol</th><th>Alert Level</th><th>Score</th><th>Pillars</th><th>Flags</th><th>Guidance</th></tr></thead>
+          <tbody id="alert-tbody"><tr><td colspan="7" style="text-align:center;padding:30px;"><div class="spinner" style="margin:0 auto"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 6: Data Export -->
+  <div class="tab-content" id="tab-export">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Export Signal Data</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="insight-box">
+            <div class="insight-title">Current Signal Readings</div>
+            <div class="insight-text" style="margin-bottom:10px;">All 7 coins with composite scores, pillar scores, z-scores, and flags. Snapshot of current state.</div>
+            <button class="export-btn" style="margin-left:0" onclick="exportSignalCSV()">↓ Download signals.csv</button>
+          </div>
+          <div class="insight-box">
+            <div class="insight-title">Alert History Log</div>
+            <div class="insight-text" style="margin-bottom:10px;">Complete alert log with timestamps, signal context, and guidance text. Use for backtesting and audit.</div>
+            <button class="export-btn" style="margin-left:0" onclick="exportAlertCSV()">↓ Download alerts.csv</button>
+          </div>
+          <div class="insight-box">
+            <div class="insight-title">Raw API Data (JSON)</div>
+            <div class="insight-text" style="margin-bottom:10px;">Full JSON payload from /v1/summary endpoint. Use for custom modelling in Python or R.</div>
+            <button class="export-btn" style="margin-left:0" onclick="exportJSON()">↓ Download data.json</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">API Access for Analysts</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${['GET /v1/summary','GET /v1/risk/{symbol}','GET /v1/signals/{symbol}','GET /v1/alerts?limit=200','GET /v1/watchlist?symbols=USDC,USDT'].map(ep=>`
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+              <code style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent)">${ep}</code>
+              <button class="ctrl-btn" style="font-size:9px;padding:4px 8px" onclick="window.open('http://localhost:8000/docs','_blank')">Try →</button>
+            </div>
+          `).join('')}
+          <div class="insight-box" style="margin-top:4px;">
+            <div class="insight-title">API Documentation</div>
+            <div class="insight-text">Full interactive API docs available at <a href="http://localhost:8000/docs" target="_blank" style="color:var(--accent)">localhost:8000/docs</a>. Every endpoint has a live test runner.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API='http://localhost:8000';
+let globalData={coins:[],alerts:[]};
+let supplyView='supply';
+let selectedCoins=new Set(['USDT','USDC','DAI','FRAX']);
+
+function alertCls(l){if(!l)return'healthy';if(l.includes('EXIT'))return'exit';if(l.includes('REDUCE'))return'reduce';if(l.includes('WATCH'))return'watch';return'healthy';}
+function scoreCol(s){return s>=70?'var(--red)':s>=45?'var(--orange)':s>=20?'var(--yellow)':'var(--green)';}
+function timeAgo(iso){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso))/1000);if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;return`${Math.floor(d/3600)}h ago`;}
+
+const PLOTLY_LAYOUT={
+  paper_bgcolor:'transparent',plot_bgcolor:'transparent',
+  font:{color:'#7a8a99',family:'DM Mono'},
+  xaxis:{gridcolor:'rgba(255,255,255,0.04)',color:'#3d5060',tickfont:{size:10}},
+  yaxis:{gridcolor:'rgba(255,255,255,0.04)',color:'#3d5060',tickfont:{size:10}},
+  margin:{t:20,b:40,l:50,r:20},
+  showlegend:true,
+  legend:{bgcolor:'rgba(0,0,0,0)',font:{color:'#7a8a99',size:10}},
+  hovermode:'x unified',
+  hoverlabel:{bgcolor:'#0c1118',bordercolor:'rgba(255,255,255,0.1)',font:{color:'#e8edf2',family:'DM Mono',size:11}},
+};
+const PLOTLY_CONFIG={responsive:true,displayModeBar:true,modeBarButtonsToRemove:['pan2d','lasso2d','select2d','autoScale2d'],displaylogo:false};
+
+const COIN_COLORS={
+  USDT:'#00d4ff',USDC:'#00e87a',DAI:'#ffc930',
+  FRAX:'#ff7a2f',PYUSD:'#c084fc',crvUSD:'#f472b6',LUSD:'#34d399'
+};
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['comparison','zscore','supply','heatmap','alerts','export'][i]===id));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  if(id==='comparison')renderComparison();
+  if(id==='zscore')renderZScore();
+  if(id==='supply')renderSupply();
+  if(id==='heatmap')renderHeatmap();
+  if(id==='alerts')renderAlertTable();
+}
+
+// ── Comparison Chart ──────────────────────────────────────────
+function renderComparison(){
+  const signal=document.getElementById('cmp-signal').value;
+  const coins=globalData.coins.filter(c=>selectedCoins.has(c.symbol));
+  if(!coins.length)return;
+
+  const traces=coins.map(c=>{
+    let val=0;
+    if(signal==='composite')val=c.composite_score||0;
+    else if(signal==='liq')val=c.liq_score||0;
+    else if(signal==='mb')val=c.mb_score||0;
+    else if(signal==='arb')val=c.arb_score||0;
+    return{
+      type:'bar',name:c.symbol,
+      x:[c.symbol],y:[val],
+      marker:{color:COIN_COLORS[c.symbol]||'#00d4ff',opacity:0.85},
+      text:[val],textposition:'outside',
+      textfont:{color:'#7a8a99',size:11,family:'DM Mono'},
+      hovertemplate:`<b>${c.symbol}</b><br>Score: ${val}<br>Alert: ${c.alert_level||'—'}<extra></extra>`
+    };
+  });
+
+  Plotly.newPlot('comparison-chart',traces,{
+    ...PLOTLY_LAYOUT,
+    barmode:'group',
+    yaxis:{...PLOTLY_LAYOUT.yaxis,range:[0,115],title:{text:'Score (0-100)',font:{size:10,color:'#3d5060'}}},
+    shapes:[
+      {type:'line',x0:-0.5,x1:coins.length-0.5,y0:70,y1:70,line:{color:'rgba(255,51,102,0.3)',dash:'dot',width:1}},
+      {type:'line',x0:-0.5,x1:coins.length-0.5,y0:45,y1:45,line:{color:'rgba(255,122,47,0.3)',dash:'dot',width:1}},
+      {type:'line',x0:-0.5,x1:coins.length-0.5,y0:20,y1:20,line:{color:'rgba(255,201,48,0.3)',dash:'dot',width:1}},
+    ],
+    annotations:[
+      {x:coins.length-0.5,y:72,text:'EXIT',font:{size:9,color:'rgba(255,51,102,0.6)',family:'DM Mono'},showarrow:false,xanchor:'right'},
+      {x:coins.length-0.5,y:47,text:'REDUCE',font:{size:9,color:'rgba(255,122,47,0.6)',family:'DM Mono'},showarrow:false,xanchor:'right'},
+      {x:coins.length-0.5,y:22,text:'WATCH',font:{size:9,color:'rgba(255,201,48,0.6)',family:'DM Mono'},showarrow:false,xanchor:'right'},
+    ]
+  },PLOTLY_CONFIG);
+
+  // Update insight
+  const top=coins.sort((a,b)=>(b.composite_score||0)-(a.composite_score||0))[0];
+  const insight=document.getElementById('comparison-insight');
+  if(top){
+    insight.innerHTML=`<strong style="color:var(--text)">${top.symbol}</strong> shows the highest ${signal} signal score at <strong style="color:${scoreCol(top.composite_score||0)}">${top.composite_score||0}/100</strong> with status <strong>${top.alert_level||'—'}</strong>. ${top.guidance||''}`;
+  }
+}
+
+// ── Z-Score Analysis ──────────────────────────────────────────
+function renderZScore(){
+  const pillar=document.getElementById('zs-pillar').value;
+  const coins=globalData.coins;
+  if(!coins.length)return;
+
+  const symbols=coins.map(c=>c.symbol);
+  const zscores=coins.map(c=>{
+    if(pillar==='burn')return c.burn_zscore||0;
+    if(pillar==='arb')return c.arb_zscore||0;
+    if(pillar==='liq')return c.liq_zscore||0;
+    return 0;
+  });
+  const colors=zscores.map(z=>{
+    if(pillar==='arb'){return z<-2?'var(--red)':z<-1.5?'var(--orange)':z<-1?'var(--yellow)':'var(--green)';}
+    return z>3?'var(--red)':z>2?'var(--orange)':z>1.5?'var(--yellow)':'var(--green)';
+  });
+
+  Plotly.newPlot('zscore-chart',[{
+    type:'bar',x:symbols,y:zscores,
+    marker:{color:colors,opacity:0.85},
+    text:zscores.map(z=>z.toFixed(2)),textposition:'outside',
+    textfont:{color:'#7a8a99',size:11,family:'DM Mono'},
+    hovertemplate:'<b>%{x}</b><br>Z-Score: %{y:.2f}<extra></extra>'
+  }],{
+    ...PLOTLY_LAYOUT,
+    yaxis:{...PLOTLY_LAYOUT.yaxis,title:{text:'Z-Score',font:{size:10,color:'#3d5060'}}},
+    shapes:[
+      {type:'line',x0:-0.5,x1:symbols.length-0.5,y0:1.5,y1:1.5,line:{color:'rgba(255,201,48,0.4)',dash:'dot',width:1}},
+      {type:'line',x0:-0.5,x1:symbols.length-0.5,y0:2,y1:2,line:{color:'rgba(255,122,47,0.4)',dash:'dot',width:1}},
+      {type:'line',x0:-0.5,x1:symbols.length-0.5,y0:3,y1:3,line:{color:'rgba(255,51,102,0.4)',dash:'dot',width:1}},
+      {type:'line',x0:-0.5,x1:symbols.length-0.5,y0:-2,y1:-2,line:{color:'rgba(255,51,102,0.4)',dash:'dot',width:1}},
+    ]
+  },PLOTLY_CONFIG);
+}
+
+// ── Supply Tracker ────────────────────────────────────────────
+function setSupplyView(view,btn){
+  supplyView=view;
+  document.querySelectorAll('#tab-supply .ctrl-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSupply();
+}
+
+function renderSupply(){
+  const coins=globalData.coins;
+  if(!coins.length)return;
+
+  const traces=coins.map(c=>{
+    let val=0;
+    if(supplyView==='supply')val=c.total_supply_m||0;
+    else if(supplyView==='net')val=c.net_change_m||0;
+    else if(supplyView==='mints')val=c.mints_m||0;
+    else if(supplyView==='burns')val=c.burns_m||0;
+    return{
+      type:'bar',name:c.symbol,x:[c.symbol],y:[val],
+      marker:{color:COIN_COLORS[c.symbol]||'#00d4ff',opacity:0.85},
+      text:[val.toFixed(1)+'M'],textposition:'outside',
+      textfont:{color:'#7a8a99',size:10,family:'DM Mono'},
+    };
+  });
+
+  Plotly.newPlot('supply-chart',traces,{
+    ...PLOTLY_LAYOUT,
+    barmode:'group',
+    yaxis:{...PLOTLY_LAYOUT.yaxis,title:{text:'Amount (Millions USD)',font:{size:10,color:'#3d5060'}}},
+  },PLOTLY_CONFIG);
+
+  // Table
+  const tbody=document.getElementById('supply-tbody');
+  tbody.innerHTML=coins.map(c=>{
+    const cls=alertCls(c.alert_level);
+    const nc=c.net_change_m||0;
+    return`<tr>
+      <td style="color:var(--text);font-weight:700">${c.symbol}</td>
+      <td>${(c.total_supply_m||0).toFixed(1)}M</td>
+      <td style="color:${nc>=0?'var(--green)':'var(--red)'}">${nc>=0?'+':''}${nc.toFixed(1)}M</td>
+      <td style="color:var(--green)">${(c.mints_m||0).toFixed(1)}M</td>
+      <td style="color:var(--red)">${(c.burns_m||0).toFixed(1)}M</td>
+      <td><span class="badge badge-${cls}">${cls.toUpperCase()}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Heatmap ───────────────────────────────────────────────────
+function renderHeatmap(){
+  const coins=globalData.coins;
+  if(!coins.length)return;
+
+  const symbols=coins.map(c=>c.symbol);
+  const pillars=['Liquidity','Mint/Burn','Arb Health','Composite'];
+  const z=coins.map(c=>[
+    c.liq_score||0,
+    c.mb_score||0,
+    c.arb_score||0,
+    c.composite_score||0
+  ]);
+
+  Plotly.newPlot('heatmap-chart',[{
+    type:'heatmap',
+    z:z,
+    x:pillars,
+    y:symbols,
+    colorscale:[
+      [0,'rgba(0,232,122,0.2)'],
+      [0.2,'rgba(255,201,48,0.4)'],
+      [0.45,'rgba(255,122,47,0.6)'],
+      [0.7,'rgba(255,51,102,0.8)'],
+      [1,'rgba(255,51,102,1)']
+    ],
+    text:z.map(row=>row.map(v=>v.toString())),
+    texttemplate:'%{text}',
+    textfont:{color:'white',size:12,family:'DM Mono'},
+    hovertemplate:'<b>%{y}</b> — %{x}<br>Score: %{z}<extra></extra>',
+    showscale:true,
+    colorbar:{tickfont:{color:'#7a8a99',size:10,family:'DM Mono'},bgcolor:'transparent',outlinecolor:'transparent'},
+  }],{
+    ...PLOTLY_LAYOUT,
+    margin:{t:20,b:60,l:80,r:80},
+    xaxis:{...PLOTLY_LAYOUT.xaxis,tickfont:{size:11,color:'#7a8a99'}},
+    yaxis:{...PLOTLY_LAYOUT.yaxis,tickfont:{size:11,color:'#7a8a99'}},
+  },PLOTLY_CONFIG);
+
+  // Scatter
+  Plotly.newPlot('scatter-chart',[{
+    type:'scatter',mode:'markers+text',
+    x:coins.map(c=>c.peg_dev_bps||0),
+    y:coins.map(c=>c.composite_score||0),
+    text:coins.map(c=>c.symbol),
+    textposition:'top center',
+    textfont:{color:'#7a8a99',size:11,family:'DM Mono'},
+    marker:{
+      color:coins.map(c=>scoreCol(c.composite_score||0)),
+      size:14,opacity:0.85,
+      line:{color:'rgba(255,255,255,0.1)',width:1}
+    },
+    hovertemplate:'<b>%{text}</b><br>Peg Dev: %{x}bps<br>Composite: %{y}<extra></extra>'
+  }],{
+    ...PLOTLY_LAYOUT,
+    xaxis:{...PLOTLY_LAYOUT.xaxis,title:{text:'Peg Deviation (bps)',font:{size:10,color:'#3d5060'}}},
+    yaxis:{...PLOTLY_LAYOUT.yaxis,title:{text:'Composite Risk Score',font:{size:10,color:'#3d5060'}}},
+  },PLOTLY_CONFIG);
+}
+
+// ── Alert Table ───────────────────────────────────────────────
+function renderAlertTable(){
+  const sym=document.getElementById('alert-filter-sym').value;
+  const level=document.getElementById('alert-filter-level').value;
+  let alerts=globalData.alerts;
+  if(sym!=='all')alerts=alerts.filter(a=>a.symbol===sym);
+  if(level!=='all')alerts=alerts.filter(a=>(a.alert_level||'').includes(level));
+
+  const tbody=document.getElementById('alert-tbody');
+  if(!alerts.length){
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;">No alerts match filter</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML=alerts.slice(0,50).map(a=>{
+    const cls=alertCls(a.alert_level);
+    const flags=(a.active_flags||[]).slice(0,3).join(', ')||'—';
+    return`<tr>
+      <td style="white-space:nowrap">${timeAgo(a.timestamp)}</td>
+      <td style="color:var(--text);font-weight:700">${a.symbol}</td>
+      <td><span class="badge badge-${cls}">${a.alert_level||'—'}</span></td>
+      <td style="color:${scoreCol(a.composite_score||0)}">${a.composite_score||0}</td>
+      <td>${a.pillars_active||0}/3</td>
+      <td style="font-size:9px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${flags}</td>
+      <td style="font-size:10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.guidance||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterAlertTable(){renderAlertTable();}
+
+// ── Exports ───────────────────────────────────────────────────
+function exportChart(id){
+  Plotly.downloadImage(id,{format:'png',width:1200,height:600,filename:`stableguard_${id}_${Date.now()}`});
+}
+
+function exportSignalCSV(){
+  const coins=globalData.coins;
+  const headers=['symbol','alert_level','composite_score','liq_score','mb_score','arb_score','total_supply_m','net_change_m','risk_trend','pillars_active','total_flags'];
+  const rows=coins.map(c=>headers.map(h=>c[h]??'').join(','));
+  download([headers.join(','),...rows].join('\n'),'stableguard_signals.csv','text/csv');
+}
+
+function exportAlertCSV(){
+  const alerts=globalData.alerts;
+  const headers=['timestamp','symbol','alert_level','composite_score','pillars_active','guidance'];
+  const rows=alerts.map(a=>headers.map(h=>`"${(a[h]??'').toString().replace(/"/g,"'")}"`).join(','));
+  download([headers.join(','),...rows].join('\n'),'stableguard_alerts.csv','text/csv');
+}
+
+function exportJSON(){
+  download(JSON.stringify(globalData,null,2),'stableguard_data.json','application/json');
+}
+
+function download(content,filename,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=filename;a.click();
+}
+
+// ── Coin checkboxes ───────────────────────────────────────────
+function buildCoinCheckboxes(coins){
+  const container=document.getElementById('coin-checkboxes');
+  container.innerHTML=coins.map(c=>`
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      <input type="checkbox" ${selectedCoins.has(c.symbol)?'checked':''} onchange="toggleCoin('${c.symbol}',this.checked)" style="accent-color:${COIN_COLORS[c.symbol]||'var(--accent)'}">
+      <span style="font-family:'DM Mono',monospace;font-size:10px;color:${COIN_COLORS[c.symbol]||'var(--text2)'}">${c.symbol}</span>
+    </label>
+  `).join('');
+}
+
+function toggleCoin(symbol,checked){
+  if(checked)selectedCoins.add(symbol);else selectedCoins.delete(symbol);
+  renderComparison();
+}
+
+// ── Load data ─────────────────────────────────────────────────
+async function loadData(){
+  try{
+    const[sumRes,alertRes]=await Promise.all([
+      fetch(`${API}/v1/summary`),
+      fetch(`${API}/v1/alerts?limit=100`)
+    ]);
+    const sum=await sumRes.json();
+    const alertData=alertRes.ok?await alertRes.json():{alerts:[]};
+    const coins=sum.coins||[];
+    const stats=sum.stats||{};
+
+    // Enrich with signal data
+    const enriched=await Promise.all(coins.map(async c=>{
+      try{
+        const r=await fetch(`${API}/v1/signals/${c.symbol}`);
+        if(r.ok){
+          const d=await r.json();
+          const raw=d.raw||{};
+          return{...c,
+            liq_score:d.signals?.liquidity?.score||0,
+            mb_score:d.signals?.mintBurn?.score||0,
+            arb_score:d.signals?.arb?.score||0,
+            burn_zscore:d.signals?.mintBurn?.burn_zscore||0,
+            arb_zscore:d.signals?.arb?.arb_zscore||0,
+            liq_zscore:d.signals?.liquidity?.liq_zscore||0,
+            peg_dev_bps:d.signals?.liquidity?.peg_dev_bps||0,
+            guidance:d.guidance||c.guidance,
+            total_supply_m:raw.total_supply_m||0,
+            net_change_m:raw.net_change_m||0,
+            mints_m:raw.mints_m||0,
+            burns_m:raw.burns_m||0,
+          };
+        }
+      }catch{}
+      return c;
+    }));
+
+    globalData={coins:enriched,alerts:alertData.alerts||[]};
+
+    // Update stats
+    const top=enriched[0];
+    document.getElementById('as-max').textContent=top?.composite_score||'—';
+    document.getElementById('as-max-coin').textContent=top?.symbol||'—';
+    document.getElementById('as-signals').textContent=enriched.reduce((s,c)=>s+(c.total_flags||0),0);
+    document.getElementById('as-status').textContent=sum.system_status||'—';
+    document.getElementById('as-updated').textContent=`Updated ${timeAgo(sum.last_updated)}`;
+
+    buildCoinCheckboxes(enriched);
+    renderComparison();
+
+  }catch(e){
+    console.error('Load error:',e);
+  }
+}
+
+loadData();
+setInterval(loadData,5*60*1000);
+</script>
+</body>
+</html>

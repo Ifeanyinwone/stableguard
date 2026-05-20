@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StableGuard — Trader Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+:root{--bg:#030507;--bg2:#070b0f;--bg3:#0c1118;--bg4:#111820;--border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.10);--text:#e8edf2;--text2:#7a8a99;--text3:#3d5060;--accent:#00d4ff;--accent2:#0088aa;--green:#00e87a;--yellow:#ffc930;--orange:#ff7a2f;--red:#ff3366;--green-bg:rgba(0,232,122,0.07);--yellow-bg:rgba(255,201,48,0.07);--orange-bg:rgba(255,122,47,0.07);--red-bg:rgba(255,51,102,0.07);--nav-h:60px;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding-top:var(--nav-h);}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.sg-nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(3,5,7,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:1000;display:flex;align-items:center;padding:0 28px;gap:0;}
+.sg-nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;margin-right:40px;}
+.sg-nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px rgba(0,212,255,0.25);}
+.sg-nav-logo-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);}
+.sg-nav-links{display:flex;align-items:center;gap:4px;flex:1;}
+.sg-nav-link{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;color:var(--text2);transition:all 0.2s;}
+.sg-nav-link:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.sg-nav-link.active{color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);}
+.sg-nav-right{display:flex;align-items:center;gap:12px;margin-left:auto;}
+.nav-status{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.page{max-width:1440px;margin:0 auto;padding:28px 28px 60px;position:relative;z-index:1;}
+.hero-banner{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;}
+.hero-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:4px 0 0 4px;}
+.hero-banner::after{content:'SIGNAL ENGINE';position:absolute;right:32px;top:50%;transform:translateY(-50%);font-family:'Bebas Neue',sans-serif;font-size:90px;color:rgba(255,255,255,0.02);letter-spacing:4px;pointer-events:none;white-space:nowrap;}
+.hero-left h1{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--text);line-height:1;}
+.hero-left p{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);margin-top:6px;letter-spacing:1px;}
+.hero-stats{display:flex;gap:40px;}
+.hero-stat{text-align:center;}
+.hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;line-height:1;}
+.hero-stat-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-top:4px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.stat-card:hover{border-color:var(--border2);}
+.stat-card-icon{position:absolute;right:16px;top:16px;font-size:20px;opacity:0.3;}
+.stat-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;line-height:1;color:var(--text);}
+.stat-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:5px;}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.section-title{font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.section-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
+.refresh-btn{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);padding:6px 12px;border-radius:8px;cursor:pointer;transition:all 0.2s;}
+.refresh-btn:hover{background:rgba(0,212,255,0.12);}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-btn{font-family:'DM Mono',monospace;font-size:10px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.2s;}
+.filter-btn:hover{border-color:var(--border2);color:var(--text);}
+.filter-btn.active{background:rgba(0,212,255,0.08);color:var(--accent);border-color:rgba(0,212,255,0.2);}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:32px;}
+.risk-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.3s;animation:fadeUp 0.5s ease both;}
+.risk-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.5);border-color:var(--border2);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.border-healthy{border-top:3px solid var(--green);}
+.border-watch{border-top:3px solid var(--yellow);}
+.border-reduce{border-top:3px solid var(--orange);}
+.border-exit{border-top:3px solid var(--red);}
+.card-top{padding:20px 22px 16px;border-bottom:1px solid var(--border);}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;}
+.card-symbol{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--text);}
+.card-price{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);margin-top:2px;}
+.card-badge{padding:5px 12px;border-radius:20px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1px;text-transform:uppercase;}
+.badge-healthy{background:var(--green-bg);color:var(--green);border:1px solid rgba(0,232,122,0.2);}
+.badge-watch{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(255,201,48,0.2);}
+.badge-reduce{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(255,122,47,0.2);}
+.badge-exit{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,51,102,0.2);}
+.score-row{display:flex;align-items:center;gap:18px;}
+.score-ring{position:relative;width:76px;height:76px;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);line-height:1;}
+.score-info{flex:1;}
+.score-trend{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;}
+.trend-up{color:var(--red);}
+.trend-down{color:var(--green);}
+.pillar-tags{display:flex;gap:5px;flex-wrap:wrap;}
+.ptag{font-family:'DM Mono',monospace;font-size:9px;padding:3px 8px;border-radius:4px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);text-transform:uppercase;letter-spacing:0.5px;}
+.ptag.active{background:rgba(0,212,255,0.08);color:var(--accent);border-color:rgba(0,212,255,0.2);}
+.card-signals{padding:16px 22px;}
+.sig-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.sig-row:last-child{margin-bottom:0;}
+.sig-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);width:62px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.5px;}
+.sig-track{flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.sig-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1);}
+.sig-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);width:28px;text-align:right;}
+.card-guidance{padding:0 22px 18px;}
+.guidance-box{background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text2);line-height:1.6;border-left:2px solid var(--border2);}
+.alert-feed{background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:32px;}
+.feed-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.feed-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);}
+.live-pill{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:9px;color:var(--green);padding:4px 10px;background:var(--green-bg);border:1px solid rgba(0,232,122,0.2);border-radius:12px;}
+.alert-item{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px;transition:background 0.2s;animation:slideIn 0.3s ease both;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
+.alert-item:last-child{border-bottom:none;}
+.alert-item:hover{background:rgba(255,255,255,0.02);}
+.adot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.adot-exit{background:var(--red);box-shadow:0 0 6px var(--red);}
+.adot-reduce{background:var(--orange);box-shadow:0 0 6px var(--orange);}
+.adot-watch{background:var(--yellow);box-shadow:0 0 6px var(--yellow);}
+.adot-healthy{background:var(--green);}
+.alert-content{flex:1;}
+.alert-top{display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;}
+.alert-sym{font-size:13px;font-weight:700;color:var(--text);}
+.alert-time{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-left:auto;}
+.alert-text{font-size:11px;color:var(--text2);line-height:1.5;}
+.alert-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.aflag{font-family:'DM Mono',monospace;font-size:8px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--text3);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;animation:fadeIn 0.2s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;}
+.modal-header{padding:24px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;}
+.modal-close{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.modal-close:hover{background:var(--red-bg);color:var(--red);}
+.modal-body{padding:24px 28px;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.modal-stat{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.modal-stat-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+.modal-stat-val{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:var(--text);}
+.modal-stat-sub{font-family:'DM Mono',monospace;font-size:10px;color:var(--text2);margin-top:4px;}
+.chart-box{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
+.chart-box-title{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
+.loading{display:flex;flex-direction:column;align-items:center;padding:60px 20px;color:var(--text3);gap:12px;}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media(max-width:900px){.stats-row{grid-template-columns:repeat(2,1fr);}.hero-stats{display:none;}.modal-grid{grid-template-columns:1fr;}}
+@media(max-width:600px){.cards-grid{grid-template-columns:1fr;}.page{padding:16px;}.sg-nav-link span:not(.nav-icon){display:none;}}
+</style>
+</head>
+<body>
+
+<nav class="sg-nav">
+  <a href="dashboard.html" class="sg-nav-logo">
+    <div class="sg-nav-logo-icon">🛡</div>
+    <span class="sg-nav-logo-text">StableGuard</span>
+  </a>
+  <div class="sg-nav-links">
+    <a href="dashboard.html" class="sg-nav-link active">📊 <span>Traders</span></a>
+    <a href="analyst.html" class="sg-nav-link">🔬 <span>Analysts</span></a>
+    <a href="risk-manager.html" class="sg-nav-link">⚙️ <span>Risk Managers</span></a>
+    <a href="institutions.html" class="sg-nav-link">🏛 <span>Institutions</span></a>
+  </div>
+  <div class="sg-nav-right">
+    <div class="nav-status">
+      <div class="pulse-dot"></div>
+      <span id="nav-status-text">Live</span>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="hero-banner">
+    <div class="hero-left">
+      <h1>Trader Intelligence</h1>
+      <p id="hero-sub">LOADING SIGNAL ENGINE...</p>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-val" id="h-exit" style="color:var(--red)">—</div><div class="hero-stat-label">Exit Alerts</div></div>
+      <div class="hero-stat"><div class="hero-stat-val" id="h-reduce" style="color:var(--orange)">—</div><div class="hero-stat-label">Reduce</div></div>
+      <div class="hero-stat"><div class="hero-stat-val" id="h-watch" style="color:var(--yellow)">—</div><div class="hero-stat-label">Watch</div></div>
+      <div class="hero-stat"><div class="hero-stat-val" id="h-healthy" style="color:var(--green)">—</div><div class="hero-stat-label">Healthy</div></div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-card-icon">🎯</div><div class="stat-label">Highest Risk</div><div class="stat-val" id="s-top-score">—</div><div class="stat-sub" id="s-top-coin">Loading...</div></div>
+    <div class="stat-card"><div class="stat-card-icon">🔥</div><div class="stat-label">Active Alerts</div><div class="stat-val" id="s-alerts">—</div><div class="stat-sub">Non-healthy coins</div></div>
+    <div class="stat-card"><div class="stat-card-icon">⚡</div><div class="stat-label">Signals Firing</div><div class="stat-val" id="s-flags">—</div><div class="stat-sub">Across all pillars</div></div>
+    <div class="stat-card"><div class="stat-card-icon">🕐</div><div class="stat-label">Last Update</div><div class="stat-val" style="font-size:18px;padding-top:8px" id="s-time">—</div><div class="stat-sub">Auto-refresh 5min</div></div>
+  </div>
+
+  <div class="section-head">
+    <div class="section-title">Live Risk Intelligence</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterCards('all',this)">All</button>
+        <button class="filter-btn" onclick="filterCards('exit',this)" style="color:var(--red)">🔴 Exit</button>
+        <button class="filter-btn" onclick="filterCards('reduce',this)" style="color:var(--orange)">🟠 Reduce</button>
+        <button class="filter-btn" onclick="filterCards('watch',this)" style="color:var(--yellow)">🟡 Watch</button>
+        <button class="filter-btn" onclick="filterCards('healthy',this)" style="color:var(--green)">🟢 Healthy</button>
+      </div>
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div id="cards-grid" class="cards-grid">
+    <div class="loading"><div class="spinner"></div><span>Loading signals...</span></div>
+  </div>
+
+  <div class="section-head" style="margin-top:8px;">
+    <div class="section-title">Alert Inbox</div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterAlerts('all',this)">All</button>
+      <button class="filter-btn" onclick="filterAlerts('EXIT',this)" style="color:var(--red)">Exit</button>
+      <button class="filter-btn" onclick="filterAlerts('REDUCE',this)" style="color:var(--orange)">Reduce</button>
+      <button class="filter-btn" onclick="filterAlerts('WATCH',this)" style="color:var(--yellow)">Watch</button>
+    </div>
+  </div>
+
+  <div class="alert-feed">
+    <div class="feed-header">
+      <span class="feed-title">Recent Alerts — Full Signal Context</span>
+      <div class="live-pill"><div class="pulse-dot"></div>Live Feed</div>
+    </div>
+    <div id="alert-feed"></div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:4px;">SIGNAL DETAIL VIEW</div>
+        <div class="modal-title" id="modal-title">—</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const API='http://localhost:8000';
+const CIRC=2*Math.PI*32;
+let allCoins=[],allAlerts=[];
+
+function alertCls(l){if(!l)return'healthy';if(l.includes('EXIT'))return'exit';if(l.includes('REDUCE'))return'reduce';if(l.includes('WATCH'))return'watch';return'healthy';}
+function scoreCol(s){return s>=70?'var(--red)':s>=45?'var(--orange)':s>=20?'var(--yellow)':'var(--green)';}
+function timeAgo(iso){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso))/1000);if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;return`${Math.floor(d/3600)}h ago`;}
+
+function ring(score,color){
+  const off=CIRC-(score/100)*CIRC;
+  return`<div class="score-ring"><svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="32" fill="none" stroke="var(--bg3)" stroke-width="6"/><circle cx="38" cy="38" r="32" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${CIRC}" stroke-dashoffset="${off}" style="transition:stroke-dashoffset 1.2s ease"/></svg><div class="score-num">${score}</div></div>`;
+}
+
+function sigBar(label,val){
+  const col=scoreCol(val);
+  return`<div class="sig-row"><div class="sig-label">${label}</div><div class="sig-track"><div class="sig-fill" style="width:${Math.min(val,100)}%;background:${col}"></div></div><div class="sig-val">${val}</div></div>`;
+}
+
+function renderCards(coins){
+  const grid=document.getElementById('cards-grid');
+  if(!coins.length){grid.innerHTML=`<div class="loading"><span style="color:var(--text3)">No coins match filter</span></div>`;return;}
+  grid.innerHTML=coins.map((c,i)=>{
+    const cls=alertCls(c.alert_level),col=scoreCol(c.composite_score||0);
+    const trend=c.risk_trend||'→ Stable';
+    const tCls=trend.includes('Rising')?'trend-up':trend.includes('Falling')?'trend-down':'';
+    const price=c.price_usd?`$${Number(c.price_usd).toFixed(4)}`:'N/A';
+    const peg=c.peg_dev_bps?` · ${Number(c.peg_dev_bps).toFixed(1)}bps`:'';
+    return`<div class="risk-card border-${cls}" style="animation-delay:${i*0.06}s" onclick="openModal('${c.symbol}')">
+      <div class="card-top">
+        <div class="card-header">
+          <div><div class="card-symbol">${c.symbol}</div><div class="card-price">${price}${peg}</div></div>
+          <div class="card-badge badge-${cls}">${cls.toUpperCase()}</div>
+        </div>
+        <div class="score-row">
+          ${ring(c.composite_score||0,col)}
+          <div class="score-info">
+            <div class="score-trend">Trend: <span class="${tCls}">${trend}</span></div>
+            <div class="pillar-tags">
+              <span class="ptag ${(c.pillars_active||0)>=1?'active':''}">Liquidity</span>
+              <span class="ptag ${(c.pillars_active||0)>=2?'active':''}">Mint/Burn</span>
+              <span class="ptag ${(c.pillars_active||0)>=3?'active':''}">Arb</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-signals">
+        ${sigBar('Liquidity',c.liq_score||0)}
+        ${sigBar('Mint/Burn',c.mb_score||0)}
+        ${sigBar('Arb',c.arb_score||0)}
+      </div>
+      ${c.guidance?`<div class="card-guidance"><div class="guidance-box">${c.guidance}</div></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function filterCards(level,btn){
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards(level==='all'?allCoins:allCoins.filter(c=>alertCls(c.alert_level)===level));
+}
+
+function renderAlerts(alerts){
+  const feed=document.getElementById('alert-feed');
+  if(!alerts.length){feed.innerHTML=`<div class="alert-item"><div class="alert-content" style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;">No alerts yet.</div></div>`;return;}
+  feed.innerHTML=alerts.slice(0,15).map((a,i)=>{
+    const cls=alertCls(a.alert_level);
+    const col=cls==='exit'?'var(--red)':cls==='reduce'?'var(--orange)':cls==='watch'?'var(--yellow)':'var(--green)';
+    const flags=(a.active_flags||[]).slice(0,5);
+    return`<div class="alert-item" style="animation-delay:${i*0.04}s">
+      <div class="adot adot-${cls}"></div>
+      <div class="alert-content">
+        <div class="alert-top">
+          <span class="alert-sym">${a.symbol}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${col}">${a.alert_level||''}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);background:var(--bg3);padding:2px 8px;border-radius:4px;">Score: ${a.composite_score||0}</span>
+          <span class="alert-time">${timeAgo(a.timestamp)}</span>
+        </div>
+        <div class="alert-text">${a.guidance||''}</div>
+        ${flags.length?`<div class="alert-flags">${flags.map(f=>`<span class="aflag">${f}</span>`).join('')}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterAlerts(level,btn){
+  document.querySelectorAll('.feed-header~div .filter-btn, .section-head .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAlerts(level==='all'?allAlerts:allAlerts.filter(a=>(a.alert_level||'').includes(level)));
+}
+
+async function openModal(symbol){
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-title').textContent=symbol;
+  document.getElementById('modal-body').innerHTML=`<div class="loading"><div class="spinner"></div></div>`;
+  try{
+    const res=await fetch(`${API}/v1/risk/${symbol}`);
+    const d=await res.json();
+    const sig=d.signals||{},liq=sig.liquidity||{},mb=sig.mintBurn||{},arb=sig.arb||{},raw=d.raw||{};
+    const cls=alertCls(d.alert_level),col=scoreCol(d.composite_score||0);
+    document.getElementById('modal-body').innerHTML=`
+      <div class="modal-grid">
+        <div class="modal-stat"><div class="modal-stat-label">Composite Score</div><div class="modal-stat-val" style="color:${col}">${d.composite_score||0}/100</div><div class="modal-stat-sub">${d.alert_level||''}</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Risk Trend</div><div class="modal-stat-val" style="font-size:20px">${raw.risk_trend||'—'}</div><div class="modal-stat-sub">Pillars active: ${d.pillars_active||0}/3</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Total Supply</div><div class="modal-stat-val" style="font-size:20px">${raw.total_supply_m?Number(raw.total_supply_m).toFixed(0)+'M':'—'}</div><div class="modal-stat-sub">Net change: ${raw.net_change_m?Number(raw.net_change_m).toFixed(1)+'M':'—'}</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Price / Peg Dev</div><div class="modal-stat-val" style="font-size:20px">${d.price?.usd?'$'+Number(d.price.usd).toFixed(4):'N/A'}</div><div class="modal-stat-sub">Dev: ${d.price?.peg_dev_bps?Number(d.price.peg_dev_bps).toFixed(2)+'bps':'—'}</div></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-box-title">Signal Pillar Breakdown</div>
+        <div id="modal-chart" style="height:220px"></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-box-title">Detailed Signal Readings</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;">
+          ${mSigCard('Liquidity',liq.score||0,[['Peg Dev BPS',(liq.peg_dev_bps||0).toFixed(1)],['Liq Z-Score',(liq.liq_zscore||0).toFixed(2)],['Anomaly',liq.anomaly?'YES':'NO']])}
+          ${mSigCard('Mint/Burn',mb.score||0,[['Burn Z-Score',(mb.burn_zscore||0).toFixed(2)],['Burn % Base',(mb.burn_pct_baseline||0).toFixed(0)+'%'],['Anomaly',mb.anomaly?'YES':'NO']])}
+          ${mSigCard('Arb Health',arb.score||0,[['Arb Z-Score',(arb.arb_zscore||0).toFixed(2)],['Arb Trades',arb.arb_trades||0],['Baseline',arb.baseline_arb||0]])}
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-box-title">Active Signal Flags</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+          ${(d.active_flags||[]).length?(d.active_flags||[]).map(f=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,122,47,0.08);border:1px solid rgba(255,122,47,0.2);border-radius:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--orange)">⚠ ${f}</div>`).join(''):'<span style="color:var(--text3);font-family:DM Mono,monospace;font-size:11px;">No flags active</span>'}
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;border-left:3px solid ${col}">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Trader Guidance</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7">${d.guidance||'No guidance available.'}</div>
+      </div>`;
+    Plotly.newPlot('modal-chart',[{
+      type:'bar',
+      x:['Liquidity','Mint/Burn','Arb Health'],
+      y:[liq.score||0,mb.score||0,arb.score||0],
+      marker:{color:[scoreCol(liq.score||0),scoreCol(mb.score||0),scoreCol(arb.score||0)]},
+      text:[liq.score||0,mb.score||0,arb.score||0],textposition:'outside',
+      textfont:{color:'#7a8a99',size:12,family:'DM Mono'}
+    }],{
+      paper_bgcolor:'transparent',plot_bgcolor:'transparent',
+      margin:{t:10,b:40,l:30,r:10},
+      yaxis:{range:[0,115],gridcolor:'rgba(255,255,255,0.04)',color:'#3d5060',tickfont:{color:'#3d5060',size:10,family:'DM Mono'}},
+      xaxis:{color:'#7a8a99',tickfont:{color:'#7a8a99',size:11,family:'DM Mono'}},
+      showlegend:false,
+    },{responsive:true,displayModeBar:false});
+  }catch(e){
+    document.getElementById('modal-body').innerHTML=`<div style="color:var(--text3);padding:40px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;">Failed to load: ${e.message}</div>`;
+  }
+}
+
+function mSigCard(title,score,rows){
+  const col=scoreCol(score);
+  return`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${title}</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${col};margin-bottom:10px;">${score}/100</div>
+    ${rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--border);"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);">${k}</span><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text2);">${v}</span></div>`).join('')}
+  </div>`;
+}
+
+function closeModal(e){if(e.target.classList.contains('modal-overlay'))document.getElementById('modal').classList.remove('open');}
+
+async function loadData(){
+  try{
+    const[sumRes,alertRes]=await Promise.all([fetch(`${API}/v1/summary`),fetch(`${API}/v1/alerts?limit=30`)]);
+    const sum=await sumRes.json(),alerts=alertRes.ok?await alertRes.json():{alerts:[]};
+    const coins=sum.coins||[],stats=sum.stats||{};
+    document.getElementById('hero-sub').textContent=`${stats.total_monitored||0} STABLECOINS MONITORED · UPDATED ${timeAgo(sum.last_updated)}`;
+    document.getElementById('h-exit').textContent=stats.exit_alerts||0;
+    document.getElementById('h-reduce').textContent=stats.reduce_alerts||0;
+    document.getElementById('h-watch').textContent=stats.watch_alerts||0;
+    document.getElementById('h-healthy').textContent=(stats.total_monitored||0)-(stats.exit_alerts||0)-(stats.reduce_alerts||0)-(stats.watch_alerts||0);
+    document.getElementById('nav-status-text').textContent=sum.system_status||'Live';
+    const top=coins[0];
+    document.getElementById('s-top-score').textContent=top?.composite_score||'—';
+    document.getElementById('s-top-coin').textContent=top?.symbol||'—';
+    document.getElementById('s-alerts').textContent=coins.filter(c=>!c.alert_level?.includes('HEALTHY')).length;
+    document.getElementById('s-flags').textContent=coins.reduce((s,c)=>s+(c.total_flags||0),0);
+    document.getElementById('s-time').textContent=sum.last_updated?new Date(sum.last_updated).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'—';
+    allCoins=await Promise.all(coins.map(async c=>{
+      try{const r=await fetch(`${API}/v1/signals/${c.symbol}`);if(r.ok){const d=await r.json();return{...c,liq_score:d.signals?.liquidity?.score||0,mb_score:d.signals?.mintBurn?.score||0,arb_score:d.signals?.arb?.score||0,guidance:d.guidance||c.guidance};}}catch{}return c;
+    }));
+    renderCards(allCoins);
+    allAlerts=alerts.alerts||[];
+    renderAlerts(allAlerts);
+  }catch(e){
+    document.getElementById('cards-grid').innerHTML=`<div class="loading"><span style="color:var(--red)">⚠ Cannot connect to API</span><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">Run: python api_server.py</span></div>`;
+  }
+}
+
+loadData();
+setInterval(loadData,5*60*1000);
+</script>
+</body>
+</html>
