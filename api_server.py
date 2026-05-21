@@ -11,8 +11,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
-import threading
-from scheduler import start_scheduler
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,10 +34,6 @@ app = FastAPI(
     docs_url="/docs",       # Interactive API docs at /docs
     redoc_url="/redoc",
 )
-# ── Start scheduler in background thread ──────────────────────
-scheduler_thread = threading.Thread(target=start_scheduler)
-scheduler_thread.daemon = True
-scheduler_thread.start()
 
 # CORS — allow dashboard frontend to call the API
 app.add_middleware(
@@ -357,30 +351,76 @@ def get_watchlist(
     })
 
 
-# ── Startup event ──────────────────────────────────────────────
-@app.on_event("startup")
-async def startup_event():
+# ── Background refresh cycle ───────────────────────────────────
+async def refresh_cycle():
     """
-    On startup: load initial data from Dune and score all coins.
-    This means the API is ready immediately without waiting for
-    the first scheduler cycle.
+    Runs the full signal cycle: fetch Dune + CoinGecko -> score -> cache.
+    Called on startup and every 5 minutes via background task.
+    This makes the API self-contained on Render with one service.
     """
-    log.info("StableGuard API starting up...")
+    log.info("=== Background refresh cycle starting ===")
     try:
         from dune_fetcher import fetch_dune_signals
         from risk_scorer  import score_all
 
-        log.info("Loading initial signals from Dune...")
         dune_signals = fetch_dune_signals(force_refresh=False)
+        if not dune_signals:
+            log.warning("No Dune data returned. Retrying next cycle.")
+            return
 
-        if dune_signals:
-            scores = score_all(dune_signals)
+        gecko_prices = []
+        try:
+            from stable import fetch_live_prices
+            gecko_prices = fetch_live_prices()
+            log.info(f"CoinGecko: {len(gecko_prices)} coins fetched")
+        except Exception as e:
+            log.warning(f"CoinGecko fetch failed: {e}")
+
+        scores = score_all(dune_signals, gecko_prices)
+        if scores:
             update_cache(scores)
-            log.info(f"Startup complete: {len(scores)} coins loaded")
-        else:
-            log.warning("No Dune data on startup. Waiting for scheduler.")
+            log.info(f"Cache updated: {len(scores)} coins scored")
+
+        try:
+            from database import save_scores, save_alerts
+            save_scores(scores)
+            active = {s: d for s, d in scores.items() if d.get("alert_level") != "🟢 HEALTHY"}
+            if active:
+                save_alerts(active)
+        except Exception as e:
+            log.warning(f"Database save failed: {e}")
+
+        try:
+            from alert_dispatcher import dispatch_all
+            dispatch_all(scores)
+        except Exception as e:
+            log.warning(f"Alert dispatch failed: {e}")
+
+        log.info("=== Background refresh cycle complete ===")
+
     except Exception as e:
-        log.error(f"Startup error: {e}")
+        log.error(f"Refresh cycle error: {e}")
+
+
+async def background_scheduler():
+    """Runs refresh_cycle every 5 minutes indefinitely."""
+    import asyncio
+    while True:
+        await refresh_cycle()
+        await asyncio.sleep(300)
+
+
+# ── Startup event ──────────────────────────────────────────────
+@app.on_event("startup")
+async def startup_event():
+    """
+    On startup: launch background scheduler.
+    Makes API fully self-contained on Render with ONE service only.
+    """
+    import asyncio
+    log.info("StableGuard API starting up...")
+    asyncio.create_task(background_scheduler())
+    log.info("Background scheduler launched — first cycle starting...")
 
 
 # ── Run directly ───────────────────────────────────────────────

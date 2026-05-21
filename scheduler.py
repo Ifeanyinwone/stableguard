@@ -219,44 +219,8 @@ def print_startup_banner():
 ╚══════════════════════════════════════════════════════════╝
 """)
 
-# ── Scheduler starter for Render deployment ───────────────────
-def start_scheduler():
-
-    print_startup_banner()
-
-    log.info("Running initial cycle on startup...")
-
-    try:
-        run_cycle()
-    except Exception as e:
-        log.error(f"Initial cycle failed: {e}")
-
-    scheduler = BlockingScheduler(timezone="UTC")
-
-    scheduler.add_job(
-        func=run_cycle,
-        trigger=IntervalTrigger(minutes=FETCH_INTERVAL_MINUTES),
-        id="stableguard_cycle",
-        name="StableGuard Signal Cycle",
-        replace_existing=True,
-        max_instances=1,
-    )
-
-    log.info(
-        f"Scheduler started. Running every "
-        f"{FETCH_INTERVAL_MINUTES} minutes."
-    )
-
-    try:
-        scheduler.start()
-
-    except KeyboardInterrupt:
-        log.info("Scheduler stopped.")
-        scheduler.shutdown()
 
 # ── Main entry point ───────────────────────────────────────────
-
-
 if __name__ == "__main__":
     print_startup_banner()
 
