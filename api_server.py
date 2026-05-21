@@ -454,6 +454,38 @@ async def startup_event():
     log.info(f"Background scheduler thread started: {t.name}")
 
 
+# ── Debug endpoint ────────────────────────────────────────────
+@app.get("/v1/debug")
+def debug():
+    """Debug endpoint — shows system state and import status."""
+    import importlib
+    modules = {}
+    for mod in ["dune_fetcher", "stable", "risk_scorer", "database", "alert_dispatcher"]:
+        try:
+            importlib.import_module(mod)
+            modules[mod] = "OK"
+        except Exception as e:
+            modules[mod] = str(e)
+
+    return {
+        "python_path":   sys.path[:3],
+        "cwd":           os.getcwd(),
+        "files_in_dir":  os.listdir(os.getcwd()),
+        "modules":       modules,
+        "cache_size":    len(_risk_cache),
+        "last_updated":  _last_updated,
+    }
+
+
+@app.get("/v1/trigger")
+def trigger_refresh():
+    """Manually trigger a refresh cycle — for debugging on Render."""
+    import threading
+    t = threading.Thread(target=refresh_cycle, daemon=True)
+    t.start()
+    return {"status": "refresh triggered", "thread": t.name}
+
+
 # ── Run directly ───────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
