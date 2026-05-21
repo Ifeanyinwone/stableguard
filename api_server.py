@@ -6,11 +6,16 @@ Runs with: uvicorn api_server:app --reload --port 8000
 """
 
 import os
+import sys
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
+
+# ── Ensure current directory is in Python path ─────────────────
+# Required for Render to find local modules like dune_fetcher, stable, etc.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -352,44 +357,55 @@ def get_watchlist(
 
 
 # ── Background refresh cycle ───────────────────────────────────
-async def refresh_cycle():
+def refresh_cycle():
     """
     Runs the full signal cycle: fetch Dune + CoinGecko -> score -> cache.
-    Called on startup and every 5 minutes via background task.
-    This makes the API self-contained on Render with one service.
+    Runs in a background thread — no async needed.
     """
     log.info("=== Background refresh cycle starting ===")
     try:
         from dune_fetcher import fetch_dune_signals
         from risk_scorer  import score_all
 
+        # Step 1: Fetch Dune signals
         dune_signals = fetch_dune_signals(force_refresh=False)
         if not dune_signals:
             log.warning("No Dune data returned. Retrying next cycle.")
             return
 
+        log.info(f"Dune: {len(dune_signals)} coins fetched")
+
+        # Step 2: Fetch CoinGecko prices
         gecko_prices = []
         try:
             from stable import fetch_live_prices
             gecko_prices = fetch_live_prices()
             log.info(f"CoinGecko: {len(gecko_prices)} coins fetched")
         except Exception as e:
-            log.warning(f"CoinGecko fetch failed: {e}")
+            log.warning(f"CoinGecko fetch failed: {e}. Continuing without price data.")
 
+        # Step 3: Score all coins
         scores = score_all(dune_signals, gecko_prices)
-        if scores:
-            update_cache(scores)
-            log.info(f"Cache updated: {len(scores)} coins scored")
+        if not scores:
+            log.warning("No scores produced. Skipping update.")
+            return
 
+        # Step 4: Update API cache
+        update_cache(scores)
+        log.info(f"Cache updated: {len(scores)} coins scored")
+
+        # Step 5: Save to database
         try:
             from database import save_scores, save_alerts
             save_scores(scores)
-            active = {s: d for s, d in scores.items() if d.get("alert_level") != "🟢 HEALTHY"}
+            active = {s: d for s, d in scores.items()
+                      if d.get("alert_level") != "🟢 HEALTHY"}
             if active:
                 save_alerts(active)
         except Exception as e:
             log.warning(f"Database save failed: {e}")
 
+        # Step 6: Dispatch alerts
         try:
             from alert_dispatcher import dispatch_all
             dispatch_all(scores)
@@ -402,25 +418,40 @@ async def refresh_cycle():
         log.error(f"Refresh cycle error: {e}")
 
 
-async def background_scheduler():
-    """Runs refresh_cycle every 5 minutes indefinitely."""
+def background_scheduler():
+    """Runs refresh_cycle every 5 minutes in a separate thread."""
     import asyncio
+    import time
+
+    log.info("Background scheduler thread started.")
+
     while True:
-        await refresh_cycle()
-        await asyncio.sleep(300)
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(refresh_cycle())
+            loop.close()
+        except Exception as e:
+            log.error(f"Scheduler thread error: {e}")
+        log.info("Next refresh cycle in 5 minutes.")
+        time.sleep(300)
 
 
 # ── Startup event ──────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
     """
-    On startup: launch background scheduler.
-    Makes API fully self-contained on Render with ONE service only.
+    On startup: launch background scheduler in a separate thread.
+    Threading approach is more reliable on Render than asyncio tasks.
     """
-    import asyncio
+    import threading
     log.info("StableGuard API starting up...")
-    asyncio.create_task(background_scheduler())
-    log.info("Background scheduler launched — first cycle starting...")
+
+    # Start scheduler in daemon thread so it dies when server stops
+    t = threading.Thread(target=background_scheduler, daemon=True)
+    t.start()
+    log.info(f"Background scheduler thread started: {t.name}")
 
 
 # ── Run directly ───────────────────────────────────────────────
