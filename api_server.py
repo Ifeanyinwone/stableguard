@@ -11,6 +11,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
+import threading
+from scheduler import start_scheduler
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,10 @@ app = FastAPI(
     docs_url="/docs",       # Interactive API docs at /docs
     redoc_url="/redoc",
 )
+# ── Start scheduler in background thread ──────────────────────
+scheduler_thread = threading.Thread(target=start_scheduler)
+scheduler_thread.daemon = True
+scheduler_thread.start()
 
 # CORS — allow dashboard frontend to call the API
 app.add_middleware(
