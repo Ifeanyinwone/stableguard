@@ -94,13 +94,14 @@ def refresh_cycle():
     Runs in a daemon thread every 5 minutes.
     """
     log.info("=== Refresh cycle starting ===")
+    # AFTER ✅
     try:
         # Import here so path is already set
         from risk_scorer import score_all
 
-  # Step 1: DefiLlama (free, no API key, no rate limits)
-        from defillama_fetcher import fetch_dune_signals
-        dune_signals = fetch_dune_signals()
+        # Step 1: DefiLlama (free, no API key, no rate limits)
+        from defillama_fetcher import fetch_all_signals
+        dune_signals = fetch_all_signals()
         if not dune_signals:
             log.warning("No DefiLlama data. Retrying next cycle.")
             return
@@ -215,7 +216,7 @@ def debug():
     """Debug endpoint — shows exactly what Render can see."""
     import importlib
     modules = {}
-    for mod in ["dune_fetcher", "stable", "risk_scorer",
+    for mod in ["defillama_fetcher", "stable", "risk_scorer",
                 "database", "alert_dispatcher"]:
         try:
             importlib.import_module(mod)
