@@ -98,9 +98,9 @@ def refresh_cycle():
         # Import here so path is already set
         from risk_scorer import score_all
 
-        # Step 1: DefiLlama (free, no API key, no rate limits)
-        from defillama_fetcher import fetch_all_signals
-        dune_signals = fetch_all_signals()
+  # Step 1: DefiLlama (free, no API key, no rate limits)
+        from defillama_fetcher import fetch_dune_signals
+        dune_signals = fetch_dune_signals()
         if not dune_signals:
             log.warning("No DefiLlama data. Retrying next cycle.")
             return
