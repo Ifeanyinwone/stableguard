@@ -369,7 +369,7 @@ const SHARED_STYLES = `
 // ── Navigation HTML ───────────────────────────────────────────
 function renderNav(activePage) {
   const pages = [
-    { id: 'dashboard', href: 'dashboard.html', icon: '📊', label: 'Traders' },
+    { id: 'dashboard', href: 'index.html', icon: '📊', label: 'Traders' },
     { id: 'analyst',   href: 'analyst.html',   icon: '🔬', label: 'Analysts' },
     { id: 'risk',      href: 'risk-manager.html', icon: '⚙️', label: 'Risk Managers' },
     { id: 'institutions', href: 'institutions.html', icon: '🏛', label: 'Institutions' },
@@ -377,7 +377,7 @@ function renderNav(activePage) {
 
   return `
     <nav class="sg-nav">
-      <a href="dashboard.html" class="sg-nav-logo">
+      <a href="index.html" class="sg-nav-logo">
         <div class="sg-nav-logo-icon">🛡</div>
         <span class="sg-nav-logo-text">StableGuard</span>
       </a>
