@@ -445,12 +445,12 @@ def score_stablecoin(
             },
         },
 
-        # Real-time price data (from CoinGecko if available)
+        # Real-time price data (CoinGecko if available, else DefiLlama fallback)
         "price": {
-            "usd":             gecko_data.get("price_usd", None)     if gecko_data else None,
-            "peg_dev_bps":     gecko_data.get("peg_deviation_bps", 0) if gecko_data else None,
-            "volume_24h_usd":  gecko_data.get("volume_24h_usd", 0)   if gecko_data else None,
-            "peg_alert":       gecko_data.get("peg_alert", "UNKNOWN") if gecko_data else None,
+            "usd":            gecko_data.get("price_usd", None)      if gecko_data else dune_data.get("price_usd"),
+            "peg_dev_bps":    gecko_data.get("peg_deviation_bps", 0) if gecko_data else dune_data.get("peg_dev_bps"),
+            "volume_24h_usd": gecko_data.get("volume_24h_usd", 0)    if gecko_data else None,
+            "peg_alert":      gecko_data.get("peg_alert", "UNKNOWN")  if gecko_data else dune_data.get("peg_alert"),
         },
 
         # All active flags for dashboard

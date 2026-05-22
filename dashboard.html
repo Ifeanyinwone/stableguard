@@ -224,7 +224,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </div>
 
 <script>
-const API='http://localhost:8000';
+const API = "https://YOUR-RENDER-URL.onrender.com";
 const CIRC=2*Math.PI*32;
 let allCoins=[],allAlerts=[];
 
@@ -328,7 +328,22 @@ async function openModal(symbol){
         <div class="modal-stat"><div class="modal-stat-label">Composite Score</div><div class="modal-stat-val" style="color:${col}">${d.composite_score||0}/100</div><div class="modal-stat-sub">${d.alert_level||''}</div></div>
         <div class="modal-stat"><div class="modal-stat-label">Risk Trend</div><div class="modal-stat-val" style="font-size:20px">${raw.risk_trend||'—'}</div><div class="modal-stat-sub">Pillars active: ${d.pillars_active||0}/3</div></div>
         <div class="modal-stat"><div class="modal-stat-label">Total Supply</div><div class="modal-stat-val" style="font-size:20px">${raw.total_supply_m?Number(raw.total_supply_m).toFixed(0)+'M':'—'}</div><div class="modal-stat-sub">Net change: ${raw.net_change_m?Number(raw.net_change_m).toFixed(1)+'M':'—'}</div></div>
-        <div class="modal-stat"><div class="modal-stat-label">Price / Peg Dev</div><div class="modal-stat-val" style="font-size:20px">${d.price?.usd?'$'+Number(d.price.usd).toFixed(4):'N/A'}</div><div class="modal-stat-sub">Dev: ${d.price?.peg_dev_bps?Number(d.price.peg_dev_bps).toFixed(2)+'bps':'—'}</div></div>
+        <div class="modal-stat">
+  <div class="modal-stat-label">Price / Peg Dev</div>
+
+  <div class="modal-stat-val" style="font-size:20px">
+    ${d.price_usd
+      ? '$' + Number(d.price_usd).toFixed(4)
+      : 'N/A'}
+  </div>
+
+  <div class="modal-stat-sub">
+    Dev:
+    ${d.peg_dev_bps
+      ? Number(d.peg_dev_bps).toFixed(2) + 'bps'
+      : '—'}
+  </div>
+</div>
       </div>
       <div class="chart-box">
         <div class="chart-box-title">Signal Pillar Breakdown</div>

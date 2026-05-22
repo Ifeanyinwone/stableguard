@@ -1,314 +1,281 @@
 """
 StableGuard — alert_dispatcher.py
-Layer 5: Alert delivery
+Production-safe alert dispatcher
 """
 
 import os
 import logging
 import requests
-import pathlib
-from datetime import datetime, timezone
+
 from dotenv import load_dotenv
 
-# Load .env from project folder explicitly
-env_path = pathlib.Path("C:/Users/PC/Desktop/Emmanuel/Python Courses/Stableguide/.env")
-load_dotenv(dotenv_path=env_path, override=True)
-
-# Debug: confirm keys loaded
-print(f"DEBUG TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN', 'NOT FOUND')[:15]}...")
-print(f"DEBUG CHAT:  {os.getenv('TELEGRAM_CHAT_ID', 'NOT FOUND')}")
-print(f"DEBUG DISC:  {os.getenv('DISCORD_WEBHOOK_URL', 'NOT FOUND')[:30]}...")
+load_dotenv()
 
 log = logging.getLogger("alert_dispatcher")
 
-# ── Config from .env ───────────────────────────────────────────
-TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID    = os.getenv("TELEGRAM_CHAT_ID")
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+# ── Environment ──────────────────────────────────────────────
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT  = os.getenv("TELEGRAM_CHAT_ID")
 
-# Alert level to emoji mapping
-LEVEL_EMOJI = {
-    "🔴 EXIT":    "🔴",
-    "🟠 REDUCE":  "🟠",
-    "🟡 WATCH":   "🟡",
-    "🟢 HEALTHY": "🟢",
-}
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK_URL")
 
-# Discord color codes per alert level
-DISCORD_COLORS = {
-    "🔴 EXIT":    0xFF0000,   # Red
-    "🟠 REDUCE":  0xFF6600,   # Orange
-    "🟡 WATCH":   0xFFCC00,   # Yellow
-    "🟢 HEALTHY": 0x00CC44,   # Green
-}
+TIMEOUT = 15
 
-# Only alert on these levels (don't spam HEALTHY)
-ALERT_LEVELS = {"🔴 EXIT", "🟠 REDUCE", "🟡 WATCH"}
+# ── Telegram sender ──────────────────────────────────────────
+def send_telegram(message: str) -> bool:
 
-
-# ── Message formatter ──────────────────────────────────────────
-def format_telegram_message(risk: dict) -> str:
-    """
-    Formats a clean Telegram alert message.
-    Per spec: must include what is happening, which signals fired,
-    and what the recommended action is.
-    """
-    symbol      = risk.get("symbol", "UNKNOWN")
-    alert_level = risk.get("alert_level", "")
-    score       = risk.get("composite_score", 0)
-    trend       = risk.get("raw", {}).get("risk_trend", "")
-    pillars     = risk.get("pillars_active", 0)
-    flags       = risk.get("active_flags", [])
-    guidance    = risk.get("guidance", "")
-    scored_at   = risk.get("scored_at", "")
-
-    # Signal breakdown
-    signals  = risk.get("signals", {})
-    liq_score = signals.get("liquidity", {}).get("score", 0)
-    mb_score  = signals.get("mintBurn", {}).get("score", 0)
-    arb_score = signals.get("arb", {}).get("score", 0)
-    burn_z    = signals.get("mintBurn", {}).get("burn_zscore", 0)
-    arb_z     = signals.get("arb", {}).get("arb_zscore", 0)
-    peg_bps   = signals.get("liquidity", {}).get("peg_dev_bps", 0)
-
-    # Price info
-    price     = risk.get("price", {})
-    price_usd = price.get("usd")
-    price_str = f"${price_usd:.4f}" if price_usd else "N/A"
-
-    emoji = LEVEL_EMOJI.get(alert_level, "⚠️")
-
-    msg = f"""
-{emoji} *StableGuard Alert — {symbol}*
-━━━━━━━━━━━━━━━━━━━━
-*Alert Level:* {alert_level}
-*Risk Score:* {score}/100 {trend}
-*Pillars Active:* {pillars}/3
-*Price:* {price_str}
-
-📊 *Signal Breakdown:*
-• Liquidity:  {liq_score}/100 (peg dev: {peg_bps:.1f}bps)
-• Mint/Burn:  {mb_score}/100 (burn z: {burn_z:.2f})
-• Arb Health: {arb_score}/100 (arb z: {arb_z:.2f})
-
-🚩 *Active Flags:* {', '.join(flags) if flags else 'None'}
-
-💡 *Guidance:*
-{guidance}
-
-🕐 {scored_at[:19].replace('T', ' ')} UTC
-━━━━━━━━━━━━━━━━━━━━
-_StableGuard Early Warning System_
-""".strip()
-
-    return msg
-
-
-def format_discord_embed(risk: dict) -> dict:
-    """
-    Formats a Discord embed card for the alert.
-    Color-coded by severity level.
-    """
-    symbol      = risk.get("symbol", "UNKNOWN")
-    alert_level = risk.get("alert_level", "")
-    score       = risk.get("composite_score", 0)
-    trend       = risk.get("raw", {}).get("risk_trend", "")
-    flags       = risk.get("active_flags", [])
-    guidance    = risk.get("guidance", "")
-    scored_at   = risk.get("scored_at", "")
-
-    signals   = risk.get("signals", {})
-    liq_score = signals.get("liquidity", {}).get("score", 0)
-    mb_score  = signals.get("mintBurn", {}).get("score", 0)
-    arb_score = signals.get("arb", {}).get("score", 0)
-
-    color = DISCORD_COLORS.get(alert_level, 0x888888)
-
-    embed = {
-        "title":       f"{LEVEL_EMOJI.get(alert_level, '⚠️')} StableGuard Alert — {symbol}",
-        "description": guidance,
-        "color":       color,
-        "fields": [
-            {
-                "name":   "Alert Level",
-                "value":  alert_level,
-                "inline": True
-            },
-            {
-                "name":   "Risk Score",
-                "value":  f"{score}/100 {trend}",
-                "inline": True
-            },
-            {
-                "name":   "Signal Scores",
-                "value":  f"Liq: {liq_score} | MB: {mb_score} | Arb: {arb_score}",
-                "inline": False
-            },
-            {
-                "name":   "Active Flags",
-                "value":  ', '.join(flags) if flags else "None",
-                "inline": False
-            },
-        ],
-        "footer": {
-            "text": f"StableGuard • {scored_at[:19].replace('T', ' ')} UTC"
-        },
-        "timestamp": scored_at,
-    }
-
-    return embed
-
-
-# ── Telegram sender ────────────────────────────────────────────
-def send_telegram(risk: dict) -> bool:
-    """
-    Sends alert to Telegram channel/chat.
-    Returns True if successful.
-    """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        log.warning("Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT:
+        log.warning("Telegram credentials missing")
         return False
-
-    message = format_telegram_message(risk)
-    url     = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
     try:
-        resp = requests.post(url, json={
-            "chat_id":    TELEGRAM_CHAT_ID,
-            "text":       message,
-            "parse_mode": "Markdown",
-        }, timeout=15)
 
-        if resp.status_code == 200:
-            log.info(f"Telegram alert sent: {risk['symbol']} {risk['alert_level']}")
+        url = (
+            f"https://api.telegram.org/bot"
+            f"{TELEGRAM_TOKEN}/sendMessage"
+        )
+
+        payload = {
+            "chat_id": TELEGRAM_CHAT,
+            "text": message,
+            "parse_mode": "HTML"
+        }
+
+        response = requests.post(
+            url,
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        if response.status_code == 200:
             return True
-        else:
-            log.error(f"Telegram error {resp.status_code}: {resp.text}")
-            return False
 
-    except requests.RequestException as e:
-        log.error(f"Telegram request failed: {e}")
+        log.warning(
+            f"Telegram HTTP {response.status_code}"
+        )
+
+        return False
+
+    except Exception as e:
+
+        log.error(
+            f"Telegram send failed: {e}"
+        )
+
         return False
 
 
-# ── Discord sender ─────────────────────────────────────────────
-def send_discord(risk: dict) -> bool:
-    """
-    Sends alert to Discord channel via webhook.
-    Returns True if successful.
-    """
-    if not DISCORD_WEBHOOK_URL:
-        log.warning("Discord not configured. Set DISCORD_WEBHOOK_URL in .env")
-        return False
+# ── Discord sender ───────────────────────────────────────────
+def send_discord(message: str) -> bool:
 
-    embed = format_discord_embed(risk)
+    if not DISCORD_WEBHOOK:
+        log.warning("Discord webhook missing")
+        return False
 
     try:
-        resp = requests.post(DISCORD_WEBHOOK_URL, json={
-            "username":   "StableGuard",
-            "avatar_url": "https://i.imgur.com/placeholder.png",
-            "embeds":     [embed],
-        }, timeout=15)
 
-        if resp.status_code in (200, 204):
-            log.info(f"Discord alert sent: {risk['symbol']} {risk['alert_level']}")
+        payload = {
+            "content": message
+        }
+
+        response = requests.post(
+            DISCORD_WEBHOOK,
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        if response.status_code in [200, 204]:
             return True
-        else:
-            log.error(f"Discord error {resp.status_code}: {resp.text}")
-            return False
 
-    except requests.RequestException as e:
-        log.error(f"Discord request failed: {e}")
+        log.warning(
+            f"Discord HTTP {response.status_code}"
+        )
+
+        return False
+
+    except Exception as e:
+
+        log.error(
+            f"Discord send failed: {e}"
+        )
+
         return False
 
 
-# ── Master dispatcher ──────────────────────────────────────────
-def dispatch_alert(risk: dict) -> dict:
-    """
-    Main function called by scheduler.py.
-    Sends alert to all configured channels.
-    Only dispatches for WATCH, REDUCE, EXIT levels.
+# ── Message formatter ────────────────────────────────────────
+def build_alert_message(
+    symbol: str,
+    data: dict
+) -> str:
 
-    Returns delivery report.
-    """
-    alert_level = risk.get("alert_level", "")
-    symbol      = risk.get("symbol", "")
+    alert = data.get(
+        "alert_level",
+        "UNKNOWN"
+    )
 
-    if alert_level not in ALERT_LEVELS:
-        log.debug(f"Skipping dispatch for {symbol} — level is {alert_level}")
-        return {"dispatched": False, "reason": "HEALTHY level — no alert needed"}
+    score = data.get(
+        "composite_score",
+        0
+    )
 
-    log.info(f"Dispatching alert: {symbol} {alert_level}")
+    trend = data.get(
+        "risk_trend",
+        "→ Stable"
+    )
 
-    results = {
-        "symbol":      symbol,
-        "alert_level": alert_level,
-        "timestamp":   datetime.now(timezone.utc).isoformat(),
-        "channels":    {}
-    }
+    guidance = data.get(
+        "guidance",
+        "No guidance"
+    )
 
-    # Send to all channels
-    results["channels"]["telegram"] = send_telegram(risk)
-    results["channels"]["discord"]  = send_discord(risk)
+    active_flags = data.get(
+        "active_flags",
+        []
+    )
 
-    success_count = sum(1 for v in results["channels"].values() if v)
-    results["dispatched"]     = success_count > 0
-    results["success_count"]  = success_count
+    peg_dev = data.get(
+        "signals",
+        {}
+    ).get(
+        "liquidity",
+        {}
+    ).get(
+        "peg_dev_bps",
+        0
+    )
 
-    log.info(f"Alert dispatched to {success_count} channels for {symbol}")
-    return results
+    burn_z = data.get(
+        "signals",
+        {}
+    ).get(
+        "mintBurn",
+        {}
+    ).get(
+        "burn_zscore",
+        0
+    )
+
+    message = (
+        f"🚨 <b>StableGuard Alert</b>\n\n"
+        f"<b>Coin:</b> {symbol}\n"
+        f"<b>Alert:</b> {alert}\n"
+        f"<b>Score:</b> {score}\n"
+        f"<b>Trend:</b> {trend}\n"
+        f"<b>Peg Dev:</b> {peg_dev}bps\n"
+        f"<b>Burn Z:</b> {burn_z}\n\n"
+        f"<b>Flags:</b>\n"
+    )
+
+    if active_flags:
+        for flag in active_flags:
+            message += f"• {flag}\n"
+    else:
+        message += "• None\n"
+
+    message += (
+        f"\n<b>Guidance:</b>\n"
+        f"{guidance}"
+    )
+
+    return message
 
 
-def dispatch_all(risk_scores: dict) -> list:
-    """
-    Dispatches alerts for all coins that have non-HEALTHY status.
-    Called by scheduler.py every 5 minutes.
+# ── Main dispatcher ──────────────────────────────────────────
+def dispatch_all(scores: dict):
 
-    Returns list of dispatch results.
-    """
-    results = []
-    for symbol, risk in risk_scores.items():
-        if risk.get("alert_level") in ALERT_LEVELS:
-            result = dispatch_alert(risk)
-            results.append(result)
-    return results
+    if not scores:
+        return
+
+    for symbol, data in scores.items():
+
+        try:
+
+            alert_level = data.get(
+                "alert_level",
+                "🟢 HEALTHY"
+            )
+
+            # Only dispatch risky alerts
+            if alert_level == "🟢 HEALTHY":
+                continue
+
+            log.info(
+                f"Dispatching alert: "
+                f"{symbol} {alert_level}"
+            )
+
+            message = build_alert_message(
+                symbol,
+                data
+            )
+
+            telegram_ok = send_telegram(
+                message
+            )
+
+            discord_ok = send_discord(
+                message
+            )
+
+            channels = []
+
+            if telegram_ok:
+                channels.append("Telegram")
+
+            if discord_ok:
+                channels.append("Discord")
+
+            if channels:
+
+                log.info(
+                    f"Alert dispatched to "
+                    f"{', '.join(channels)} "
+                    f"for {symbol}"
+                )
+
+            else:
+
+                log.warning(
+                    f"No alert channels succeeded "
+                    f"for {symbol}"
+                )
+
+        except Exception as e:
+
+            log.error(
+                f"Dispatch failed for "
+                f"{symbol}: {e}",
+                exc_info=True
+            )
 
 
-# ── Standalone test ────────────────────────────────────────────
+# ── Local test ───────────────────────────────────────────────
 if __name__ == "__main__":
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
 
-    from dune_fetcher import fetch_dune_signals
-    from risk_scorer  import score_all
+    sample = {
+        "DAI": {
+            "alert_level": "🟡 WATCH",
+            "composite_score": 42,
+            "risk_trend": "↑ Rising",
+            "guidance": "Monitor liquidity conditions.",
+            "active_flags": [
+                "PEG_DEV",
+                "ARB_DECLINE"
+            ],
+            "signals": {
+                "liquidity": {
+                    "peg_dev_bps": 24
+                },
+                "mintBurn": {
+                    "burn_zscore": 1.45
+                }
+            }
+        }
+    }
 
-    print("\n=== StableGuard Alert Dispatcher — Test ===\n")
-
-    # Get live scores
-    dune_signals = fetch_dune_signals(force_refresh=False)
-    if not dune_signals:
-        print("No Dune data available.")
-        exit(1)
-
-    scores = score_all(dune_signals)
-
-    # Find highest risk coin to test with
-    top = max(scores.values(), key=lambda x: x["composite_score"])
-    print(f"Testing with highest risk coin: {top['symbol']} ({top['alert_level']})")
-    print(f"Score: {top['composite_score']}/100\n")
-
-    # Test Telegram
-    print("--- Sending Telegram alert ---")
-    tg_result = send_telegram(top)
-    print(f"Telegram: {'✅ Sent' if tg_result else '❌ Failed'}")
-
-    # Test Discord
-    print("\n--- Sending Discord alert ---")
-    dc_result = send_discord(top)
-    print(f"Discord: {'✅ Sent' if dc_result else '❌ Failed'}")
-
-    # Show formatted message
-    print("\n--- Telegram message preview ---")
-    print(format_telegram_message(top))
+    dispatch_all(sample)
