@@ -434,7 +434,15 @@ setInterval(loadData,5*60*1000);
 <div id="ai-chat">
 
   <div id="ai-header">
-    🤖 StableGuard AI
+
+    <span>
+      🤖 StableGuard AI
+    </span>
+
+    <button id="ai-toggle">
+      —
+    </button>
+
   </div>
 
   <div id="ai-messages">
@@ -484,6 +492,17 @@ background:#1f2937;
 font-weight:bold;
 color:white;
 border-bottom:1px solid #374151;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+#ai-toggle{
+background:none;
+border:none;
+color:white;
+font-size:20px;
+cursor:pointer;
 }
 
 #ai-messages{
@@ -529,6 +548,51 @@ cursor:pointer;
 </style>
 
 <script>
+
+let aiCollapsed = false;
+
+document
+.getElementById("ai-toggle")
+.onclick = function(){
+
+    const messages =
+        document.getElementById(
+            "ai-messages"
+        );
+
+    const input =
+        document.getElementById(
+            "ai-input-wrap"
+        );
+
+    const chat =
+        document.getElementById(
+            "ai-chat"
+        );
+
+    if(!aiCollapsed){
+
+        messages.style.display = "none";
+        input.style.display = "none";
+
+        chat.style.height = "60px";
+
+        this.innerText = "+";
+
+        aiCollapsed = true;
+
+    }else{
+
+        messages.style.display = "flex";
+        input.style.display = "flex";
+
+        chat.style.height = "420px";
+
+        this.innerText = "—";
+
+        aiCollapsed = false;
+    }
+}
 
 async function sendAI(){
 
