@@ -96,27 +96,18 @@ def refresh_cycle():
     log.info("=== Refresh cycle starting ===")
     try:
         # Import here so path is already set
-        from dune_fetcher import fetch_dune_signals
-        from risk_scorer  import score_all
+        from risk_scorer import score_all
 
-        # Step 1: Dune
-        dune_signals = fetch_dune_signals(force_refresh=False)
+        # Step 1: DefiLlama (free, no API key, no rate limits)
+        from defillama_fetcher import fetch_all_signals
+        dune_signals = fetch_all_signals()
         if not dune_signals:
-            log.warning("No Dune data. Retrying next cycle.")
+            log.warning("No DefiLlama data. Retrying next cycle.")
             return
-        log.info(f"Dune OK: {len(dune_signals)} coins")
+        log.info(f"DefiLlama OK: {len(dune_signals)} coins")
 
-        # Step 2: CoinGecko
-        gecko_prices = []
-        try:
-            from stable import fetch_live_prices
-            gecko_prices = fetch_live_prices()
-            log.info(f"CoinGecko OK: {len(gecko_prices)} coins")
-        except Exception as e:
-            log.warning(f"CoinGecko failed: {e}")
-
-        # Step 3: Score
-        scores = score_all(dune_signals, gecko_prices)
+        # Step 3: Score (CoinGecko price data already in DefiLlama signals)
+        scores = score_all(dune_signals, [])
         if not scores:
             log.warning("No scores produced.")
             return
