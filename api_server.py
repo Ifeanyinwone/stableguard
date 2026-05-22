@@ -9,6 +9,7 @@ import time
 import logging
 import threading
 
+from ai_chat import ai_response
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -535,6 +536,27 @@ def watchlist(
     return api_response({
         "watchlist": results,
         "count": len(results),
+    })
+
+@app.get("/v1/ai/chat")
+def ai_chat(
+    question: str = Query(...)
+):
+
+    response = ai_response(
+        question,
+        _risk_cache
+    )
+
+    return api_response({
+
+        "question": question,
+
+        "response": response,
+
+        "timestamp": datetime.now(
+            timezone.utc
+        ).isoformat()
     })
 
 
