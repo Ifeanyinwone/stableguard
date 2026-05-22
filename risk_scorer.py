@@ -53,74 +53,71 @@ THRESHOLDS = {
 
 # ── Individual pillar scorers ──────────────────────────────────
 
-def score_liquidity_pillar(dune: dict, gecko: dict | None) -> dict:
+def score_liquidity_pillar(data: dict, gecko: dict | None) -> dict:
     """
     Pillar 1: Liquidity score (0-100)
-    Sources: Dune liq_zscore + avg_peg_dev_bps
-             CoinGecko peg_deviation_bps (real-time price)
-
+    Sources: DefiLlama peg_dev_bps + liq_zscore
+             CoinGecko peg_deviation_bps (real-time price, if available)
     Higher score = more risk.
     """
-    score = 0
-    flags = []
+    score  = 0
+    flags  = []
     details = {}
 
-    # ── From Dune (on-chain pool data) ──
-    liq_zscore    = dune.get("liq_zscore", 0) or 0
-    avg_peg_bps   = dune.get("avg_peg_dev_bps", 0) or 0
-    flag_peg_dev  = dune.get("flag_peg_dev", 0) or 0
-    flag_peg_spike = dune.get("flag_peg_spike", 0) or 0
+    # ── From DefiLlama ──
+    liq_zscore     = data.get("liq_zscore", 0) or 0
+    avg_peg_bps    = data.get("avg_peg_dev_bps", 0) or 0
+    flag_peg_dev   = data.get("flag_peg_dev", 0) or 0
+    flag_peg_spike = data.get("flag_peg_spike", 0) or 0
 
-    # Liq z-score contribution (0-50 points)
-    liq_z_score = min(50, max(0, liq_zscore * 15))
-    score += liq_z_score
+    # Use real-time price if available
+    rt_peg_bps = data.get("peg_dev_bps", avg_peg_bps) or avg_peg_bps
+    best_peg   = max(avg_peg_bps, rt_peg_bps)
 
-    # Peg dev contribution (0-30 points)
-    peg_score = 0
-    if avg_peg_bps > THRESHOLDS["peg_exit"]:
-        peg_score = 30
+    # Liq z-score contribution (0-40 points)
+    score += min(40, max(0, liq_zscore * 15))
+
+    # Peg deviation contribution (0-40 points)
+    if best_peg > THRESHOLDS["peg_exit"]:
+        score += 40
         flags.append("PEG_EXTREME")
-    elif avg_peg_bps > THRESHOLDS["peg_reduce"]:
-        peg_score = 20
+    elif best_peg > THRESHOLDS["peg_reduce"]:
+        score += 25
         flags.append("PEG_HIGH")
-    elif avg_peg_bps > THRESHOLDS["peg_watch"]:
-        peg_score = 10
+    elif best_peg > THRESHOLDS["peg_watch"]:
+        score += 12
         flags.append("PEG_ELEVATED")
-    score += peg_score
 
     # Flag bonuses (0-20 points)
     if flag_peg_spike:
         score += 15
         flags.append("PEG_SPIKE")
-    if flag_peg_dev:
+    if flag_peg_dev and "PEG_ELEVATED" not in flags:
         score += 5
         flags.append("PEG_DEV")
 
-    # ── From CoinGecko (real-time price) ──
+    # ── CoinGecko enrichment (if available) ──
     if gecko:
-        cg_peg_bps  = gecko.get("peg_deviation_bps", 0) or 0
-        cg_alert    = gecko.get("peg_alert", "HEALTHY")
-        details["cg_peg_bps"]   = cg_peg_bps
-        details["cg_peg_alert"] = cg_alert
-
-        # Real-time price overrides — if CoinGecko shows worse deviation, boost score
-        if cg_peg_bps > THRESHOLDS["peg_exit"]:
-            score = max(score, 80)
-            flags.append("REALTIME_PEG_EXIT")
-        elif cg_peg_bps > THRESHOLDS["peg_reduce"]:
-            score = max(score, 55)
-            flags.append("REALTIME_PEG_HIGH")
-        elif cg_peg_bps > THRESHOLDS["peg_watch"]:
-            score = max(score, 25)
+        cg_peg = gecko.get("peg_deviation_bps", 0) or 0
+        details["cg_peg_bps"]   = cg_peg
+        details["cg_peg_alert"] = gecko.get("peg_alert", "HEALTHY")
+        if cg_peg > best_peg:
+            if cg_peg > THRESHOLDS["peg_exit"]:
+                score = max(score, 80)
+                flags.append("REALTIME_PEG_EXIT")
+            elif cg_peg > THRESHOLDS["peg_reduce"]:
+                score = max(score, 55)
+                flags.append("REALTIME_PEG_HIGH")
+            elif cg_peg > THRESHOLDS["peg_watch"]:
+                score = max(score, 25)
 
     final_score = min(100, max(0, round(score, 0)))
     details.update({
-        "liq_zscore":    liq_zscore,
-        "avg_peg_bps":   avg_peg_bps,
-        "pillar_score":  final_score,
-        "flags":         flags,
+        "liq_zscore":   liq_zscore,
+        "avg_peg_bps":  best_peg,
+        "pillar_score": final_score,
+        "flags":        flags,
     })
-
     return {"score": final_score, "flags": flags, "details": details}
 
 
@@ -556,4 +553,3 @@ if __name__ == "__main__":
     import json
     if "USDT" in results:
         print(json.dumps(results["USDT"], indent=2, default=str))
-        
