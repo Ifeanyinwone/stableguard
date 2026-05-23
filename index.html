@@ -464,11 +464,123 @@ setInterval(loadData,5*60*1000);
       Send
     </button>
 
+    </div>
+
   </div>
 
-</div>
-
 <style>
+
+.intel-feed-section{
+
+    margin-top:40px;
+    padding:32px;
+
+    background:
+    linear-gradient(
+        135deg,
+        #07111f,
+        #0a1728
+    );
+
+    border-radius:24px;
+
+    border:1px solid rgba(
+        0,
+        217,
+        255,
+        0.12
+    );
+
+    box-shadow:
+    0 0 30px rgba(
+        0,
+        217,
+        255,
+        0.05
+    );
+}
+
+.intel-feed-header{
+
+    color:#00d9ff;
+
+    font-size:13px;
+
+    letter-spacing:4px;
+
+    text-transform:uppercase;
+
+    margin-bottom:18px;
+}
+
+.intel-feed-text{
+
+    color:#94a3b8;
+
+    line-height:1.9;
+
+    max-width:760px;
+
+    margin-bottom:28px;
+}
+
+.intel-feed-buttons{
+
+    display:flex;
+
+    gap:18px;
+
+    flex-wrap:wrap;
+}
+
+.intel-btn{
+
+    padding:14px 22px;
+
+    border-radius:14px;
+
+    text-decoration:none;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    transition:0.3s ease;
+
+    border:1px solid rgba(
+        255,
+        255,
+        255,
+        0.08
+    );
+}
+
+.intel-btn:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:
+    0 0 20px rgba(
+        0,
+        217,
+        255,
+        0.18
+    );
+}
+
+.telegram-btn{
+
+    background:#0b2238;
+
+    color:#00d9ff;
+}
+
+.discord-btn{
+
+    background:#15182d;
+
+    color:#b6c2ff;
+}
 
 #ai-chat{
 position:fixed;
@@ -641,5 +753,39 @@ Connection error.
 }
 
 </script>
+
+<div class="intel-feed-section">
+
+    <div class="intel-feed-header">
+        📡 Realtime Intelligence Distribution
+    </div>
+
+    <div class="intel-feed-text">
+        Receive live StableGuard risk alerts, institutional signal transitions,
+        and realtime stablecoin intelligence updates directly through our
+        public monitoring channels.
+    </div>
+
+    <div class="intel-feed-buttons">
+
+        <a
+            href="https://t.me/stableguide_channel"
+            target="_blank"
+            class="intel-btn telegram-btn"
+        >
+            🚀 Join Telegram Feed
+        </a>
+
+        <a
+            href="https://discord.gg/qNvDsb3M5B"
+            target="_blank"
+            class="intel-btn discord-btn"
+        >
+            💬 Join Discord Server
+        </a>
+
+    </div>
+
+</div>
 </body>
 </html>
